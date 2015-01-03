@@ -1,0 +1,375 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> <html xmlns="http://www.w3.org/1999/xhtml"> <head> <title>CSE421</title> <link rel="stylesheet" href="../css/reset.css" /> <link rel="stylesheet" href="../css/menu.css" /> <link rel="stylesheet" href="../css/cse421.css" /> <link rel="stylesheet" href="../css/index.css" /> <link rel="stylesheet" href="../css/assignments.css" /> <meta http-equiv="content-type" content="text/html;charset=utf-8" /> </head> <body> <div id="top"> <p>cse421@zion:~$ whoami<br/> <strong>CSE421/521 @ SUNY Buffalo&mdash;Spring 2012</strong></p> </div> <div id="menu"> <p>cse421@zion:~$ info cse421</p> <ul style="margin-bottom:0px;"> <li><a href="../index.html">home</a></li> <li><a href="../lecture/index.html">lecture</a></li> <li><a href="current/index.html">assign</a></li> <li><a href="../video/index.html">video</a></li> <li><a href="../forum/index.html">forum</a></li> <li class="login"> <a href="../accounts/login?next=%252FASST%252F1">
+          login</a></li> </ul> <ul style="margin-bottom:0px;"> <li><a href="current/index.html">ASST0</a></li> <li><a href="1">ASST1</a></li> <li><a href="2">ASST2</a></li> <li><a href="3">ASST3</a></li> </ul> </div> <div class="assignment"> <div class="matrixquote"> <a class="matrixquote"
+       href="http://www.matrix-explained.com/matrix_movie_quotes.htm"
+       target="_blank">
+      Time is always against us.
+      <div style="text-align:right;"> <strong>&mdash;Morpheus</strong> </div> </a> </div> <h1>ASST1: Implementing and Using Synchronization Primitives</h1> <div style="clear: both;"></div> <h2>Introduction</h2> <p>In this assignment you will implement synchronization primitives for
+    OS/161 and use them to solve several synchronization problems. Once you
+    have ASST1 you should have a fairly solid grasp of the pitfalls of
+    concurrent programming and&mdash;more importantly&mdash;how to avoid
+    those pitfalls in the code you write during the rest of the semester.</p> <p>To complete this assignment you will need to be familiar with the
+    OS/161 thread code. The thread system provides interrupts, control
+    functions, and semaphores. You will implement locks, condition variables,
+    and reader/writer locks.</p> <p>The following instructions detail what you must do to complete ASST1.
+    Sections marked <span class="handmein">like this</span> include graded
+    tasks to complete.</p> <h3>Objectives</h3> <p>After completing ASST1 you should:</p> <ol> <li>Understand how OS/161 implements semaphores.
+    <li>Be comfortable implementing synchronization primitives.
+    <li>Be able to select an appropriate synchronization primitive for a
+    given problem.
+    <li>Be able to properly synchronize different types of problems.
+  </ol> <h2>Writing Readable and Maintainable Code</h2> <p>In your programming assignments, you are expected to write
+    well-documented, readable code. Generally this is good practice;
+    specifically, during this semester:</p> <ul> <li>you will be working in pairs on ASST2 and ASST3,
+      and it will be important for you to be able to read <em>your
+        partner's</em> code,</li> <li>you will be continuing to work on your OS/161 codebase,
+      and it will be important for you to be able to read <em>your own</em>
+      code, and</li> <li>when asking for help from the course staff, it will make it
+      easier for us to understand what you have done, what you have failed to
+      do, and why.</li> </ul> <p>There is no single right way to organize and document your code. It is
+  not our intent to dictate a particular coding style for this class. The
+  best way to learn about writing readable code is to read other people's
+  code. Read the OS/161 code, read your partner's code, read the source
+  code of some freely available operating system. When you read someone
+  else's code, note what you like and what you don't like. Pay close
+  attention to the lines of comments which most clearly and efficiently
+  explain what is going on. When you write code yourself, keep these
+  observations in mind.</p> <p>Here are some general tips for writing better code:</p> <ul> <li><em>Group related items together</em>, whether they are variable declarations, 
+  lines of code, or functions.</li> <li><em>Use descriptive names</em> for variables and procedures. Be consistent
+  with this throughout the program.</li> <li>Comments should describe <em>the programmer's intent</em>, not the
+  actual mechanics of the code. A comment which says "Find a free disk
+  block" is much more informative than one that says "Find first non-zero
+  element of array." The first adds information to what is present in code itself, the
+  second does not.</li> </ul> <p>When you begin ASST2, you and your partner will probably find it
+  useful to agree on a coding style. For instance, you might want to agree
+  on how variables and functions will be
+  named&mdash;<kbd>my_function</kbd>, <kbd>myFunction</kbd>,
+  <kbd>MyFunction</kbd>, <kbd>mYfUnCtIoN</kbd>,
+  <kbd>ymayUnctionFay</kbd>&mdash;since your code will have to
+  interoperate.</p> <h2>Git-ing Started</h2> <p>You knew we would come back to Git, right? Git-ting started on ASST1
+  requires that you do two new tasks with Git: tag your repository, for
+  convenience; and use Git to download some updates to the OS/161 source tree
+  that we have made and you will need to complete this assignment.</p> <h3>Git-ting Taggy With It</h3> <p>You'll remember from last time that Git stores a series of snapshots of
+  your working tree in its repository each time you perform a commit. It
+  labels these commits with a 40-character unique identifier, like
+  <kbd>9d5a8350e71705a4e4356f3680a36d2961aaf9d7</kbd>, although we can
+  usually use a shortened version like
+  <kbd>9d5a8350</kbd> as long as it uniquely identifies a commit.</p> <p>Here's the rub though: these commit identifiers work fine for Git, but
+  they don't work so well for humans. Let's say I asked you to generate a
+  patch (using <kbd>git diff</kbd>) containing all of the changes that you
+  made for ASST0. How would you do it? Given the tools we've given you up to
+  now, unless you are good at remembering arbitrary 40-character strings, you
+  would do the following:</p> <ol> <li>Use <kbd>git log</kbd> to inspect the commit logs.</li> <li>Try to remember that the last commit that was entered before you
+    began ASST0 was entered by me, Geoffrey Challen, and included the comment
+    "Fix build failure in psort.c"</li> <li>Cut and paste the commit ID <kbd>8c0b79c9</kbd>.</li> <li>Run <kbd>git diff 8c0b79c9</kbd> and examine the result.</li> </ol> <p>We can do better. Git can do better! Git supports tags. Let's add a tag
+  to our tree identifying the commit we found above to help us remember next
+  time:</p> <pre class="code">
+cse421@zion:~/src$ git tag -a "asst0-start" -m "ASST0 start." 8c0b79c9</pre> <p>Easy peasy. Git can also show you tags that are available in your
+  repository:</p> <pre class="code">
+cse421@zion:~/src$ git tag
+asst0-start</pre> <p>And, of course, allow you to <kbd>git diff</kbd> against tags you've
+  created:</p> <pre class="code">
+cse421@zion:~/src$ git diff asst0-start</pre> <p>Git tags come in handy when creating diffs, which we may ask you to do
+  later in the semester. For example, we might ask to see the changes that
+  you made for ASST0&mdash;<kbd>git diff asst0-start asst0-end</kbd>&mdash;or
+  all the changes between several assignments&mdash;<kbd>git diff asst0-start
+  asst2-end</kbd>. So please start tagging your tree at the start of each
+  assignment. Do it. Do it now. First, use <kbd>git status</kbd> to check the
+  condition of your working tree. Assuming you're clean, run <kbd>git tag -a
+  "asst1-start"</kbd>. (Without a commit ID, what do you think that <kbd>git
+  tag</kbd> does? Right. The obvious thing.)</p> <h3>Remotely Gitorious</h3> <p>You may have been wondering: Git seems great, but given that all my
+  changes are stored locally, how do I collaborate?</p> <p>Good question! And Git has a good answer: <em>remote repositories</em>
+  or <em>remotes</em>. Remote repositories create rendezvous points allowing
+  two, more, or even a single user on multiple machines to share their local
+  changes. To do so, Git users <em>push</em> or transmit their changes to
+  remote repositories and <em>pull</em> or receive changes from others.</p> <p>In fact, you already know a bit about remote repositories. When you
+  downloaded the OS/161 source code using <kbd>git clone</kbd> in ASST0 you
+  used a remote repository located at
+  <kbd>git://git.cse421.net/src/os161</kbd>. When you clone a repository, Git
+  automatically sets up the remote repository you cloned from as linked to
+  your clone. You can see evidence of this if you run:</p> <pre class="code">
+cse421@zion:~/src$ git remote -v
+origin  git://git.cse421.net/src/os161 (fetch)
+origin  git://git.cse421.net/src/os161 (push)</pre> <p>This output indicates that your repository is set to push and pull
+  changes from a remote repository with URL
+  <kbd>git://git.cse421.net/src/os161</kbd> and called <kbd>origin</kbd>.
+  Luckily for us, however, you don't have the permissions to push to this
+  repository which is shared by the entire class; it's under the control of
+  the course staff. You can, however, pull changes from it, which we are
+  about to do.</p> <h3>ASST1 Changes</h3> <p>We have made a number of changes to your base OS/161 source tree to support
+  ASST1. We do not think that these changes will overlap with ones that you
+  made for ASST0, but if they do it is your job to reconcile any merge
+  conflicts that occur later.</p> <p>As a brief summary of the changes we made:</p> <ul> <li><kbd>kern/synchprobs/drivers.c</kbd>: driver code for the ASST1
+    synchronization probems.</li> <li><kbd>kern/synchprobs/problems.c</kbd>: stub solution code for the
+    ASST1 synchronization problems.</li> <li><kbd>kern/synchprobs/whalemating.c</kbd>: removed; code moved into the
+    files above.</li> <li><kbd>kern/include/test.h</kbd>: added primitives necessary for the
+    synchronization problems and drivers.</li> <li><kbd>kern/conf/conf.kern</kbd>: modified to include
+    <kbd>kern/synchprobs/drivers.c</kbd> and
+    <kbd>kern/synchprobs/problems.c</kbd> instead of
+    <kbd>kern/syncprobs/whalemating.c</kbd> when configuring for ASST1.</li> <li><kbd>kern/startup/main.c</kbd>: adding menu items to launch each of
+    the synchronization problem drivers.</li> </ul> <h3>Git-ting Our Changes</h3> <p>While these changes are available as commit <kbd>cc722f8b6</kbd> in the
+  remote repository located at <kbd>git://git.cse421.net/src/os161</kbd>, you
+  have probably not received them yet. To do so, you need to tell Git to
+  fetch the changes we have made and merge them into your repository.
+  <em>Before you perform any merge it is best to have any changes in your
+  working directory committed.</em> Run <kbd>git status</kbd> and make sure
+  that it reports a clean working directory. Then, do the pull:</p> <pre class="code">
+cse421@zion:~/src$ git pull</pre> <blockquote class="aside"><p>you may wonder: how did Git know what remote
+  repository to pull from given the command above? By default Git is
+  configured to automatically pull changes from the <em>origin</em> remote
+  repository. You can, of course, change this.</p></blockquote> <p>Assuming everything goes according to plan, you will have our changes.
+  If the changes we made conflicted with changes that you made for ASST0, Git
+  will complain and ask you to fix the conficts and explicitly commit the
+  result. If the merge completely cleanly, however, you should not need to
+  commit anything.</p> <p>After completing the pull, look around to make sure that the changes
+  have been made. Look in <kbd>kern/synchprobs</kbd> and make sure that you
+  see <kbd>problems.c</kbd> and <kbd>drivers.c</kbd> but not
+  <kbd>whalemating.c</kbd>. Configure, build and run a a kernel for ASST1 as
+  instructed below and make sure that you see the <kbd>sp1</kbd> and
+  <kbd>sp2</kbd> options under the testing submenu. If you are having trouble
+  getting our changes, stop and contact the course staff before going on.</p> <h2>ASST1 Setup</h2> <p>We have provided a framework allowing you to develop and test your
+    solutions for the ASST1 synchronization problems described below. This
+    framework consists of:</p> <ul> <li><kbd>kern/synchprobs/problems.c</kbd>: this is the file where you
+      will implement your solutions to the ASST1 synchronization problems.</li> <li><kbd>kern/synchprobs/drivers.c</kbd>: this file contains driver code
+    we will use to test your solutions. You can and should change this file
+    to stress test your code, but there should be no dependencies between
+    your synchronization problem solutions and the problem drivers. <em>We
+    will replace the contents of this file during testing.</em></li> </ul> <p>In order to include this files in your kernel you will need to configure
+    it for ASST1. This is very similar to what we did for ASST0, almost so
+    similar that we wonder why we're reminding you, but why not:</p> <pre class="code">cse421@zion:~/src/$ cd kern/conf/
+cse421@zion:~/src/kern/conf$ ./config ASST1
+cse421@zion:~/src/kern/conf$ cd ../compile/ASST1
+cse421@zion:~/src/kern/compile/ASST1$ bmake depend
+cse421@zion:~/src/kern/compile/ASST1$ bmake
+cse421@zion:~/src/kern/compile/ASST1$ bmake install</pre> <p>Run your kernel and you should notice several new options under the
+    tests menu. These also function as command line options to run the
+    synchronization problem drivers to your kernel menu. <em>Please do not
+      change these menu options.</em> Doing so will interfere with our
+    automated testing harness.</p> <blockquote class="aside"><p>and why, oh why, would you want to do
+      that?</p></blockquote> <p>Note that you can pass arguments to your kernel from the command line. A
+    quoted semicolon-delimited set of arguments will behave as if you had
+    typed each sequentially at the kernel menu. Try the following:</p> <pre class="code">cse421@zion:~/root/$ sys161 kernel "tt1;q"</pre> <p>Finally, in order to complete the tests for this assignment you will
+    need to boot your kernel with more than the 512K of memory System/161
+    boots with by default. We suggest configuring System/161 to use at least
+    2MB or more memory by making the appropriate adjustment to
+    <kbd>sys161.conf</kbd>. We'll leave figuring out how to do that to
+    you.</p> <h2>Concurrency in OS/161</h2> <p>The goal of synchronization is to eliminate any undesirable timing
+    effects&mdash;or <em>race conditions</em>&mdash;on the output of your
+    programs. For the synchronization problems we provide, threads <i>may</i>
+    run in different orders depending on the order of events, but by using
+    the synchronization primitives you will build, you should be able to
+    guarantee that they meet the constraints inherent to each problem while
+    not deadlocking.</p> <h3>Built-in Thread Tests</h3> <p>When you booted OS/161 in ASST0, you may have seen the options to run
+    the thread tests. The thread test code uses the semaphore synchronization
+    primitive. You should trace the execution of one of these thread tests in
+    GDB to see how the scheduler acts, how threads are created, and what
+    exactly happens in a context switch. You should be able to step through
+    a call to <kbd>thread_switch()</kbd> and see exactly where the current
+    thread changes.</p> <p>Thread test 1&mdash;or <kbd>tt1</kbd> at the kernel menu or on the
+    command line&mdash;prints the numbers 0 through 7 each time each thread
+    loops. Thread test 2 (<kbd>tt2</kbd>) prints only when each thread starts
+    and exits.  The latter is intended to show that the scheduler doesn't
+    cause starvation -- the threads should all start together, spin for
+    awhile, and then end together.</p> <h3>Debugging Concurrent Programs</h3> <p>One of the frustrations of debugging concurrent programs is that timing
+    effects will cause them them to do something different each time. The end
+    result should not be different&mdash;that would be a race condition. But
+    the ordering of threads and how they are scheduled may change. For the
+    purposes of testing you may want to create more determinism.</p> <p>You will notice in <kbd>kern/thread/thread.c</kbd> in
+    <kbd>thread_startup</kbd> that when <kbd>OPT_SYNCHPROBS</kbd> is defined
+    threads will call <kbd>thread_yield</kbd> a random number of times during
+    startup, producing an immediate context switch each time. This is designed
+    to get a good mix of threads when running the thread tests and your
+    synchronization problem solutions. If we did not do this, it is likely that
+    threads would run first-in-first-out (FIFO) given the scheduling
+    quantum, which would not be very interesting!</p> <p>The random number generator used to vary the time between these
+    <kbd>thread_yield()</kbd> calls uses the same seed as the random device in
+    System/161. This means that you can reproduce a specific execution sequence
+    by using a fixed seed for the random number generator. You can pass an
+    explicit seed into random device by editing the "random" line in your
+    <kbd>sys161.conf</kbd> file.  For example, to set the seed to 1 , you would
+    edit the line to look like:</p> <pre class=code>28 random seed=1</pre> <p>We recommend that while you are writing and debugging your solutions you
+    pick a seed and use it consistently. Once you are confident that your
+    threads do what they are supposed to do, set the random device to
+    <kbd>autoseed</kbd>. This should allow you to test your solutions under
+    varying conditions and may expose scenarios that you had not
+    anticipated.</p> <blockquote class="aside"><p>when you start using the simulated disk for
+      ASST3, it has its own random delay meaning that even if you use the
+      same seed you may not get reproducible results. Life's tough,
+      right?</p></blockquote> <h3 class="handmein">ASST1 Code Reading</h3> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F1">log in</a> so that you can submit your answers.
+    </p> </blockquote> <p>To implement synchronization primitives, you will have to understand the
+    operation of the threading system in OS/161. It may also help you to look
+    at the provided implementation of semaphores. When you are writing
+    solution code for the synchronization problems it will help if you also
+    understand exactly what the OS/161 scheduler does when it dispatches
+    among threads.</p> <p>Please answer the following questions using the form below.</p> <h4>Thread Questions</h4> <div class="question codereading"> <a class="anchor" name="Q0"> <div class="text"> What happens to a thread when it calls <kbd>thread_exit()</kbd>? What about when it sleeps? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q1"> <div class="text"> What function&mdash;or functions&mdash;handles a context switch? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q2"> <div class="text"> What does it mean for a thread to be in each of the possible thread states? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q3"> <div class="text"> What does it mean to turn interrupts off? How is this accomplished? Why is it important to turn off interrupts in the thread subsystem code? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q4"> <div class="text"> What happens when a thread wakes up another thread? How does a sleeping thread get to run again? </div> </a> </div> <h4>Scheduler Questions</h4> <div class="question codereading"> <a class="anchor" name="Q5"> <div class="text"> What function, or function, choose the next thread to run? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q6"> <div class="text"> How is the next thread to run chosen? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q7"> <div class="text"> What role does the hardware timer play in scheduling? What hardware independent function is called on a timer interrupt? </div> </a> </div> <h4>Synchronization Questions</h4> <div class="question codereading"> <a class="anchor" name="Q8"> <div class="text"> Describe how <kbd>wchan_sleep()</kbd> and <kbd>wchan_wakeone()</kbd> are used to implement semaphores. </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q9"> <div class="text"> Why does the lock API in OS/161 provide <kbd>lock_do_i_hold()</kbd>, but not <kbd>lock_get_holder()</kbd>? </div> </a> </div> <h2>Coding Exercises</h2> <p>It's finally time to write some OS/161 code. The moment you've been
+    waiting for!</p> <p>It is possible to implement the primitives below on top of other
+    primitives. It is, however, not always a great idea. You should
+    definitely read and understanding the existing semaphore implementation
+    since that can be used as a model for several of the other primitives we
+    ask you to implement below.</p> <h3 class="handmein">Implement Locks</h3> <p>Implement locks for OS/161. The interface for the lock structure is defined
+    in <kbd>kern/include/synch.h</kbd>. Stub code is provided in
+    <kbd>kern/threads/synch.c</kbd>.</p> <p>When you are done you should repeatedly pass the <kbd>sy2</kbd> lock
+    test provided by OS/161.</p> <p>Note that you will not be able to run any of these tests an unlimited
+    number of times. Due to limitations in the current virtual memory system
+    used by your kernel, appropriately called <kbd>dumbvm</kbd>, your kernel
+    is leaking a lot of memory. However, your synchronization primitives
+    themselves <em>should not leak memory</em>, and you can inspect the
+    kernel heap stats to ensure that they do not. (We will.)</p> <blockquote class="aside"><p>you may wonder why, if the kernel is leaking
+      memory, the kernel heap stats don't change between runs of
+      <kbd>sy1</kbd>, for example, indicating that the semaphore
+      implementation allocates and frees memory properly. The reason is that
+      the kernel <kbd>malloc()</kbd> implementation we have provided is
+      <em>not</em> broken, and it will correctly allocate, free and
+      reallocate small items inside of the memory made available to it by the
+      kernel. What does leak are larger allocations like, for example, the 4K
+      thread kernel stacks, and it is these large items that eventually cause
+      the kernel to run out of memory and <kbd>panic()</kbd>. Look at
+      <kbd>kern/arch/mips/vm/dumbvm.c</kbd> for more details about what's
+      broken and why.</p></blockquote> <h3 class="handmein">Implement Condition Variables</h3> <p>Implement condition variables with Mesa&mdash;or
+    non-blocking&mdash;semantics for OS/161. The interface for the condition
+    variable structure is also defined in <kbd>synch.h</kbd> and stub code is
+    provided in <kbd>synch.c</kbd>.</p> <p>We have not discussed the differences between condition variable
+    semantics. Two different varieties exist: Hoare, or blocking, and Mesa,
+    or non-blocking. The difference is in how <kbd>cv_signal</kbd> is
+    handled:</p> <ul> <li>In <em>Hoare</em> semantics, the thread that calls
+      <kbd>cv_signal</kbd> will block until the signaled thread (if any) runs
+      and releases the lock.</li> <li>In <em>Mesa</em> semantics the thread that calls <kbd>cv_signal</kbd>
+      will awaken one thread waiting on the condition variable but will not
+      block.</li> </ul> <p>Please implement Mesa semantics. When you are done you should repeatedly
+    pass the <kbd>sy3</kbd> condition variable test provided by OS/161.</p> <h3 class="handmein">Implement Reader-Writer Locks</h3> <p>Implement reader-writer locks for OS/161. A reader-writer lock is a lock
+    that threads can acquire in one of two ways: read mode or write mode.
+    Read mode does not conflict with read mode, but read mode conflicts with
+    write mode and write mode conflicts with write mode. The result is that
+    many threads can acquire the lock in read mode, <strong>or</strong> one
+    thread can acquire the lock in write mode. Your solution must also ensure
+    that no thread waits to acquire the lock indefinitely, called
+    <em>starvation</em>.</p> <p>Unlike regular locks and condition variables, we have not provided you
+    with an interface, stub code, or iron-clad semantics for reader-writer
+    locks. You must develop your own. Your implementation must solve many
+    readers, one writer problem and ensure that no writers are starved even
+    in the presence of many readers. Build something you will
+    be comfortable using later.</p> <p>Implement your interface in <kbd>synch.h</kbd> and your code in
+    <kbd>synch.c</kbd>. <em>Please use the following self-explanatory
+    templates for your code to ensure that we can run it from our test
+    driver.</em></p> <pre class="code">
+struct rwlock * rwlock_create(const char *);
+void rwlock_destroy(struct rwlock *);
+
+void rwlock_acquire_read(struct rwlock *);
+void rwlock_release_read(struct rwlock *);
+void rwlock_acquire_write(struct rwlock *);
+void rwlock_release_write(struct rwlock *);</pre> <p>Unlike locks and condition variables, where we have provided you with a
+    test suite, we are leaving it to you to develop a test that exercises
+    your reader-writer locks. You will want to edit
+    <kbd>kern/startup/menu.c</kbd> to allow yourself to run the command from
+    the kernel menu or command line. We have our own reader-writer test that
+    we will use to test and grade your implementation.</p> <blockquote class="aside"><p>does this depart from our stated practice of
+      providing you with the tools necessary to evaluate your assignment?
+      Yes. And for a very good reason: writing tests is a <em>critical
+        development practice</em>. You will write a lot of OS/161 code this
+      semester, and particularly for ASST2 and ASST3 our tests are designed
+      to tell if everything is working at a very high level. They are
+      <i>comprehensive tests</i>, not <i>unit</i> tests, which target a
+      particular piece of functionality. Writing good unit tests is extremely
+      important to building large pieces of software&mdash;some even claim
+      that you should write the unit test <em>first</em> and then the
+      implementation that passes it. So we are using this opportunity to
+      force you to write a unit test in the hopes that you will continue this
+      practice later.</p></blockquote> <h2>Solving Synchronization Problems</h2> <p>The following problems will give you the opportunity to write some
+    fairly straightforward concurrent programs and get a more detailed
+    understanding of how to use threads to solve problems. We have provided
+    you with basic driver code in <kbd>kern/synchprobs/drivers.c</kbd> that starts a
+    predefined number of threads which call functions in
+    <kbd>kern/synchprobs/problems.c</kbd>. You are responsible for implementing
+    those functions which determine what those threads do. You can&mdash;and
+    should&mdash;make changes to the code in <kbd>drivers.c</kbd>, but note
+    that this file will be replaced by the drivers we cook up for
+    testing.</p> <p>When you configure your kernel for ASST1, the driver code and extra menu
+    options for executing your solutions are automatically compiled in. Type
+    <kbd>?</kbd> at the menu to get a list of commands. Remember to specify a
+    seed to use in the random number generator by editing your
+    <kbd>sys161.conf</kbd> file. It is much easier to debug initial 
+    problems when the sequence of execution and context switches is
+    reproducible.</p> <p>There are two synchronization problems posed for you. You can solve
+    these problems using any mixture of semaphores, locks, condition
+    variables, and reader-writer locks. However, one way may be more
+    straightforward than another and so you should put some thought into
+    choosing the correct primitives.</p> <h3 class="handmein">The Classic CS161 Whale Mating Problem</h3> <blockquote class="aside"><p>eventually there will be "classic" CSE421
+      synchronization problems, but for this year we're giving credit where
+      credit is due.</p></blockquote> <p>You have been hired by the New England Aquarium's research division to
+    help find a way to increase the whale population. Because there are not
+    enough of them, the whales are having synchronization problems in finding a
+    mate. The trick is that in order to have children, three whales are needed;
+    one male, one female, and one to play matchmaker&mdash;literally, to push the
+    other two whales together.</p> <p>Your job is to write the three procedures <kbd>male()</kbd>, <kbd>female()</kbd>,
+    and <kbd>matchmaker()</kbd>. Each whale is represented by a separate thread.
+    A male whale calls <kbd>male()</kbd>, which waits until there is a
+    waiting female and matchmaker; similarly, a female whale must wait until a male
+    whale and matchmaker are present. Once all three are present, the magic
+    happens and then all three return.</p> <p>Each whale thread should call the appropriate <kbd>_start()</kbd>
+    function when it begins mating or matchmaking and the appropriate
+    <kbd>_end()</kbd> function when mating or matchmaking completes. These
+    functions are part of the problem driver in <kbd>drivers.c</kbd> and you
+    are welcome to change them, but we will use our own versions for testing.</p> <p>The test driver in <kbd>drivers.c</kbd> forks thirty threads, and has
+    ten of them invoke <kbd>male()</kbd>, ten of them invoke
+    <kbd>female()</kbd>, and ten of them invoke <kbd>matchmaker()</kbd>. Stub
+    routines, which do nothing but call the appropriate <kbd>_start()</kbd>
+    and <kbd>_end()</kbd> functions, are provided for these three
+    functions. Your job will be to re-implement these functions so that they
+    solve the synchronization problem described above.</p> <p>When you are finished, you should be able to examine the output from
+    running <kbd>sp1</kbd> and convince yourself that your solution satisfies
+    the constraints outlined above.</p> <h3 class="handmein">The Buffalo Intersection Problem</h3> <p>If you drive in Buffalo you know two things very well:</p> <ul> <li>Four-way stops are very common.</li> <li>Knowledge of how to correctly proceed through a four-way stop is very
+      uncommon.</li> </ul> <p>In general, four-way stops are so tricky that they've even been known to
+    flummox the otherwise unflummoxable Google self-driving car, which both
+    knows and is programmed to follow the rules.</p> <p>Given that robot cars are the future anyway, we can rethink the entire
+    idea of a four-way stop. Let's model the intersection as shown below. We
+    consider the intersection as composed of four <em>quadrants</em>,
+    numbered 0&ndash;3. Cars approach the intersection from one of four
+    <em>directions</em>, also numbered 0&ndash;3. Note that we have numbered
+    the quadrants so that a car approaching from direction X enters the
+    intersection in quadrant X.</p> <div style="width:480px;height:480px;margin-left:auto;margin-right:auto;"> <div style="width:159px;height:159px;float:left;border-right:1px solid black;border-bottom:1px solid black;"></div> <div style="width:160px;height:160px;float:left;text-align:left;font-size:40px;font-weight:bolder;"> <div style="width:78px; height:160px;float:left;text-align:center;border-right:2px dashed black"> <div style="padding-top:40px;">0<br />&darr;</div> </div> </div> <div style="width:159px;height:159px;float:left;border-left:1px solid black;border-bottom:1px solid black;"></div> <div style="width:160px;height:160px;float:left; font-size:40px; font-weight:bolder"> <div style="width:160px; height:80px;"></div> <div style="width:160px; height:78px;border-top:2px dashed black"> <div style="padding-top:20px; padding-left:40px;">3 &rarr;</div> </div> </div> <div style="width:160px;height:160px;float:left;"> <div style="width:78px;height:80px;border-right:2px dashed black;float:left;"> <div style="text-align:center;line-height:80px;font-size:40px;font-weight:bolder">
+          0
+        </div> </div> <div style="width:80px;height:78px;border-bottom:2px dashed black;float:left;"> <div style="text-align:center;line-height:78px;font-size:40px;font-weight:bolder">
+          1
+        </div> </div> <div style="width:80px;height:78px;border-top:2px dashed black;float:left;"> <div style="text-align:center;line-height:78px;font-size:40px;font-weight:bolder">
+          3
+        </div> </div> <div style="width:78px;height:80px;border-left:2px dashed black;float:left;"> <div style="text-align:center;line-height:80px;font-size:40px;font-weight:bolder">
+          2
+        </div> </div> </div> <div style="width:160px;height:160px;float:left; font-size:40px; font-weight:bolder"> <div style="width:160px; height:78px;border-bottom:2px dashed black"> <div style="padding-top:20px; padding-left:40px;">&larr; 1</div> </div> <div style="width:160px; height:80px;"></div> </div> <div style="width:159px;height:159px;float:left;border-right:1px solid black;border-top:1px solid black;"></div> <div style="width:160px;height:160px;float:left;text-align:left;font-size:40px;font-weight:bolder;"> <div style="width:80px; height:160px;float:left;"></div> <div style="width:78px; height:160px;float:left;text-align:center; border-left:2px dashed black;"> <div style="padding-top:40px;">&uarr;<br />2</div> </div> </div> <div style="width:159px;height:159px;float:left;border-top:1px solid black;border-left:1px solid black;"></div> </div> <p>Given our model of the intersection, your job is to use synchronization
+    primitives to implement a solution meeting the following two
+    requirements:</p> <ol> <li>No two cars may be in the same quadrant of the intersection at the
+      same time. This constitutes a crash.</li> <li>Once a car enters any intersection quadrant it must always be in some
+      quadrant until it calls <kbd>leaveIntersection()</kbd>.</li> <li>Cars do not move diagonally between intersection quadrants.</li> <li>Your solution should improve traffic flow compared to a conventional
+    four-way stop while not starving traffic from any direction.</li> </ol> <p>Before you begin coding, answer the following questions using the form
+    below.</p> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F1">log in</a> so that you can submit your answers.
+    </p> </blockquote> <div class="question codereading"> <a class="anchor" name="Q10"> <div class="text"> Assume that Buffalonians are not Buffalonians and obey the law: whoever arrives at the intersection first proceeds first. Using the langauge of synchronization primitives describe the way this intersection is controlled. In what ways is this method suboptimal? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q11"> <div class="text"> Now, assume that the Buffalonians are Buffalonians and do not follow the convention described above. In what one instance can this four-way-stop intersection produce a deadlock? It is helpful to think of this in terms of the model we are using instead of trying to visualize an actual intersection. </div> </a> </div> <p>We have provided driver code for the stoplight problem in
+    <kbd>drivers.c</kbd>. The driver forks off a number of cars which
+    approach the intersection from a randomly chosen direction and then
+    randomly call one of three routines: <kbd>gostraight</kbd>,
+    <kbd>turnleft</kbd> and <kbd>turnright</kbd>. Each car should identify
+    itself as it passed through any intersection quadrant by calling the
+    <kbd>inQuadrant</kbd> function provided in <kbd>drivers.c</kbd>, and
+    should identify itself when it leaves the intersection by calling
+    <kbd>leaveIntersection</kbd>.</p> <h2>Submission and Testing</h2> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F1#Testing">log in</a>
+    so that you can view ASST1 testing procedures.
+    </p> </blockquote> <h2 class="handmein">Prepare and Upload</h2> <p>You're almost there! Just a few things left to do.</p> <h3>Create an SSH RSA Key</h3> <p>In order to prepare the shared Git repository that you and your partner
+    will use to coordinate your activities for ASST2 and ASST3, you need to
+    create an RSA key pair and share the public portion of that key pair with
+    us. We'll have more details about collaborating using Git on the ASST2
+    writeup, but here's what we need you to do now:</p> <pre class="code">
+cse421@zion:~$ ssh-keygen -t rsa</pre> <p>Follow the prompts. You may or may not choose to use a passphrase with
+    your SSH RSA keypair. When you are finished&mdash;assuming you chose the
+    default location&mdash;you should have an <kbd>~/.ssh/</kbd> directory
+    containing <kbd>id_rsa</kbd> and <kbd>id_rsa.pub</kbd>. <kbd>id_rsa</kbd>
+    is your private key: <em>don't share it with anyone!</em>.
+    <kbd>id_rsa.pub</kbd> is your public key; upload it using the form
+    below.</p> <h3>Prepare a Diff</h3> <p>The way you will submit code for this class is by using Git to create a
+    patch using <kbd>git diff</kbd>. We will take your patch and apply it to
+    a repository pegged to the commit that defines the start of the assignment.
+    In this case, we've moved that commit several times as we're rolled out
+    fixes, so it has probably diverged from what you tagged earlier. Assuming
+    that your Git tree is up-to-date (<kbd>git pull</kbd> to be sure), here's
+    what to do to generate the patch we are expecting below:</p> <pre class="code">
+cse421@zion:~/src$ git diff 25742757..HEAD &gt; ASST1.patch</pre> <p>If the command complains then you probably don't have an up-to-date
+    tree, so please <kbd>git pull</kbd> to come current.</p> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F1">log in</a> so that you can submit your answers.
+    </p> </blockquote> <div class="question implementation"> </div> </div> <script type="text/javascript" src="../js/jquery-1.7.1.js"></script> <div></div> </body> </html>

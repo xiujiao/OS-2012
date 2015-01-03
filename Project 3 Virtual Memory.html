@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> <html xmlns="http://www.w3.org/1999/xhtml"> <head> <title>CSE421</title> <link rel="stylesheet" href="../css/reset.css" /> <link rel="stylesheet" href="../css/menu.css" /> <link rel="stylesheet" href="../css/cse421.css" /> <link rel="stylesheet" href="../css/index.css" /> <link rel="stylesheet" href="../css/assignments.css" /> <meta http-equiv="content-type" content="text/html;charset=utf-8" /> </head> <body> <div id="top"> <p>cse421@zion:~$ whoami<br/> <strong>CSE421/521 @ SUNY Buffalo&mdash;Spring 2012</strong></p> </div> <div id="menu"> <p>cse421@zion:~$ info cse421</p> <ul style="margin-bottom:0px;"> <li><a href="../index.html">home</a></li> <li><a href="../lecture/index.html">lecture</a></li> <li><a href="current/index.html">assign</a></li> <li><a href="../video/index.html">video</a></li> <li><a href="../forum/index.html">forum</a></li> <li class="login"> <a href="../accounts/login?next=%252FASST%252F3">
+          login</a></li> </ul> <ul style="margin-bottom:0px;"> <li><a href="current/index.html">ASST0</a></li> <li><a href="1">ASST1</a></li> <li><a href="2">ASST2</a></li> <li><a href="3">ASST3</a></li> </ul> </div> <div class="assignment"> <div class="matrixquote"> <a class="matrixquote"
+       href="http://www.youtube.com/watch?v=Y70vcs3oV14"
+       target="_blank">
+      Neo: no one has ever done anything like this.
+      <div style="text-align:right;"> <strong>&mdash;Trinity</strong> </div>
+      That's why it's going to work.
+      <div style="text-align:right;"> <strong>&mdash;Neo</strong> </div> </a> </div> <h1>ASST3: Virtual Memory</h1> <div style="clear: both;"></div> <h2>Introduction</h2> <p> You have improved OS/161 to the point that you can now run user
+    processes. However, there are a number of shortcomings in the current
+    system. A process's size is limited by the number of TLB entries (i.e.,
+    64 pages). In addition, while <kbd>kmalloc()</kbd> correctly manages
+    sub-page allocations (i.e. memory requests for under <kbd>4KB</kbd>),
+    single and multiple-page requests are not properly returned to the
+    system, meaning that address space pages are discarded after use,
+    severely limiting the lifetime of your system.</p> <p> In this assignment we will adapt OS/161 to take full advantage of the
+    simulated hardware by implementing management of the MIPS
+    software-managed Translation Lookaside Buffer (TLB). You will write the
+    code to manage this TLB. You will also write the code to implement paging
+    &mdash;the mechanism by which memory pages of an active process can be
+    sent to disk when memory is needed, and restored to memory when required
+    by the program. This permits many processes to share limited physical
+    memory while providing each process with the abstraction of a very large
+    virtual memory. Finally, you will correctly handle page reclamation,
+    allowing your system to reclaim memory when processes exit and (in
+    theory, at least) run forever.</p> <p> ASST3 is the culmination of this class. It is harder than ASST2 in many
+    ways. In particular, for ASST2 you were essentially connecting two
+    interfaces: the system call interface and the virtual filesystem (VFS)
+    interface. There were some new features to implement&mdash;like
+    filetables and process relationship tracking&mdash;but ASST3 is
+    <em>all</em> new features to implement, and includes multiple large code
+    modules that must interface cleanly with each other.</p> <p>The advice from ASST2 is worth reiterating now that you've learned the
+    cost of ignoring it:</p> <blockquote><p>As a final piece of advice, ASST2 and ASST3 begin to produce code
+      bases that are large, complex, and potentially <i>very</i> difficult to
+      debug. <em>You do not want to introduce bugs into your kernel.</em>
+      Fine, you might say: how do I do that? Our advice&mdash;slow down,
+      design, think, design again, discuss with your partner, and slow down
+      again all <em>before</em> writing a <i>single line</i> of
+      code.</p></blockquote> <p>Were you frustrated by ASST2? <em>This is your chance to get
+      even.</em></p> <p>The description of ASST3 is somewhat shorter than it was for ASST2. This
+    should make you feel nervous. In fact, there is less to introduce you to
+    simply because there is more to do. That said, we <em>strongly</em>
+    suggest you look carefully at the <kbd>dumbvm</kbd> included in your
+    source tree and included in your build for assignments 0&ndash;2. It can
+    at least give you an idea of where to start.</p> <p>The following instructions detail precisely what you must do for ASST3.
+    Sections marked <span class="handmein">like this</span> include graded
+    tasks that you must complete.</p> <h3>Objectives</h3> <p>After completing ASST0 you should:</p> <ul> <li>Understand how to design a set of interfaces to implement a
+      collection of functionality.</li> <li>Be familiar with OS handling of TLB and page faults.</li> <li>Possess a solid intuition about virtual memory and what it means to
+      support it.</li> <li>Have completed this class!</li> </ul> <h2>TLB Handling and Paging</h2> <p> In the System/161 machine, each TLB entry includes a 20-bit virtual
+    page number and a  20-bit physical page number as well as the following
+    five fields:</p> <ul> <li> <kbd>global</kbd>: 1 bit; if set, ignore the <kbd>pid</kbd> bits in the TLB. </li> <li> <kbd>valid</kbd>: 1 bit; set if the TLB entry contains a valid translation.</li> <li> <kbd>dirty</kbd>: 1 bit; enables writing to the page referenced by the
+      entry; if this bit is 0, the page is only accessible for reading.</li> <li> <kbd>nocache</kbd>: 1 bit; unused in System/161. In a real processor,
+      indicates that the hardware cache will be disabled when accessing this page.</li> <li> <kbd>pid</kbd>: 6 bits; a context or address space ID that can be used
+      to allow entries to remain in the TLB after a context switch.</li> </ul> <p> All these bits/values are maintained by the operating system. When the
+    <kbd>valid</kbd> bit is set, the TLB entry contains a valid translation.
+    This implies that the virtual page is present in physical memory. A
+    <em>TLB miss</em> occurs when no TLB entry can be found with a matching
+    virtual page and address space ID (unless the global bit is set in which
+    case the address space ID is ignored) with the valid bit set.</p> <h3>TLB and Page Faults</h3> <p> The operating system creates the illusion of unlimited memory by using
+    physical memory as a cache of <em>virtual pages</em>. Paging relaxes the
+    requirement that all the pages in a process's virtual address space must
+    be in physical memory. Instead, we allow a process to have pages either
+    on disk or in memory. When the process issues an access to a page  that
+    is on disk, a <em>page fault</em> occurs. The operating system must
+    retrieve the page from disk and bring it into memory. Pages with valid
+    TLB entries are always in physical memory. This means that a reference to
+    a page on disk will always generate a TLB fault.  At the time of a TLB
+    fault, the hardware generates a TLB exception, trapping to the operating
+    system. The operating system then checks its own page table to locate the
+    virtual page requested. If that page is currently in memory but wasn't
+    mapped by the TLB, then all we need to do is update the TLB. However, the
+    page might be on disk.  If this is the case, the operating system
+    must:</p> <ol> <li> Allocate a place in physical memory to store the page;</li> <li> Read the page from disk,</li> <li> Update the page table entry with the new virtual-to-physical
+      address translation;</li> <li> Update the TLB to contain the new translation; and</li> <li> Resume execution of the user program.</li> </ol> <p> Notice that when the operating system selects a location in physical
+    memory in which to place the new page, the space may already be occupied.
+    In this case, the operating  system must <em>evict</em> that other page
+    from memory. If the page has been modified or does not currently have a
+    copy on disk, then the old page must first be written to disk before the
+    physical page can be reallocated. If the old page has not been modified
+    and already has a copy on disk, then the write to disk can be avoided.
+    The appropriate page table entry must be updated to reflect the fact that
+    the page is no longer in memory.</p> <p> As with any caching system, performance of your virtual memory system
+    depends on the policy used to decide which things are kept in memory and
+    which are evicted. On a page fault, the kernel must decide which page to
+    replace. Ideally, it will evict a page that will not be needed soon. Many
+    systems (such as UNIX) avoid the delay of synchronously
+    writing memory pages to disk on a page fault by writing modified pages to
+    disk in advance, so that subsequent page faults can be completed more
+    quickly.</p> <h3 class="handmein">Questions</h3> <p>These should help refresh your memory a bit on the details of address
+    translation and the types of memory-related faults.</p> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F3">log in</a> so that you can submit your answers.
+    </p> </blockquote> <div class="question conceptual"> <a class="anchor" name="Q0"> <div class="name"> Virtual address exceptions.</div> </a> <div class="text"> <p>Assuming that a user program just attempted to access a virtual address, describe the  conditions under which each of the following can arise. If the situation cannot happen, explain why it cannot occur.</p> <ol> <li>TLB miss, page fault</li> <li>TLB miss, no page fault</li> <li>TLB hit, page fault</li> <li>TLB hit, no page fault</li> </ol> </div> </div> <div class="question conceptual"> <a class="anchor" name="Q1"> <div class="name"> Single entry tlb.</div> </a> <div class="text"> <p>A friend of yours who foolishly decided not to take this class, but who likes OS/161, implemented a TLB that has room for only one entry, and experienced a bug that caused a user-level instruction to generate a TLB
+fault infinitely&mdash;the instruction never completed executing! Explain how this could happen. Recall that after OS/161 handles an exception, it restarts the instruction that caused the exception.</p> </div> </div> <div class="question conceptual"> <a class="anchor" name="Q2"> <div class="name"> Many memory exceptions.</div> </a> <div class="text"> <p>How many memory-related exceptions&mdash;including hardware exceptions and other
+software exceptional conditions&mdash;can the following MIPS-like instruction raise? Explain the cause  of each exception.</p> <pre class="code">
+# load word from $0 (contains zeros) offset 0x120 into register $3
+lw  $3,0x0120($0)
+</pre> </div> </div> <h2><kbd>malloc()</kbd></h2> <p> Once OS/161 has paging, you can support applications with larger
+    address spaces. The <tt>malloc()</tt> and <tt>free()</tt> library
+    functions are provided in the standard C library. Read the code and
+    answer the following questions.</p> <div class="question conceptual"> <a class="anchor" name="Q3"> <div class="name"> Counting sbrk calls.</div> </a> <div class="text"> <p>Consider the following (useless) program:</p> <pre class="code">
+/* This is bad code: it doesn't do any error-checking */
+#include&lt;stdio.h&gt;
+int main (int argc, char **argv) {
+        int i;
+        void *start, *finish;
+        void *res[10];
+        start = sbrk(0);
+        for (i = 0; i &lt; 10; i++) {
+                res[i] = malloc(10);
+        }
+        finish = sbrk(0);
+        /* TWO */
+        return 0;
+}
+</pre> <ol> <li>How many times does the system call <kbd>sbrk()</kbd> get called from within <kbd>malloc()</kbd>?</li> <li>On the i386 platform, what is the numeric value of <kbd>(finish - start)</kbd>?</li> </ol> </div> </div> <div class="question conceptual"> <a class="anchor" name="Q4"> <div class="name"> Counting sbrk calls part two.</div> </a> <div class="text"> <p>Suppose that in the example above we now insert the following code at location <kbd>/* TWO */</kbd>:
+<pre class="code">
+        {
+                void *x;
+                free(res[8]); free(res[7]); free(res[6]);
+                free(res[1]); free(res[3]); free(res[2]);
+                x = malloc(60);  /* MARK */
+        }
+</pre> <ol> <li>Again on the i386, would <kbd>malloc()</kbd> call <kbd>sbrk()</kbd> when doing that last allocation at the marked line above?</li> <li>What can you say about <kbd>x</kbd>?</li> </ol> </div> </div> <div class="question codereading"> <a class="anchor" name="Q5"> <div class="text"> It is conventional for libc internal functions and variables to be prefaced with "__".  Why do you think this is so? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q6"> <div class="text"> The man page for malloc requires that "the pointer returned must be suitably aligned for use with any data type."  How does our implementation of malloc guarantee this? </div> </a> </div> <p>Note that the operation of <kbd>malloc()</kbd> and <kbd>free()</kbd> is
+    a <em>standard job interview question</em>&mdash;you should understand
+    this code!</p> <h2>Implementation</h2> <p>Your mission on ASST3 is to:</p> <ul> <li>Implement the code that services TLB faults.</li> <li>Add paging to your operating system.</li> <li>Add the <kbd>sbrk()</kbd> system call, so that the
+      <kbd>malloc()</kbd> we give you works.</li> </ul> <h3>Setup</h3> <p>Consult the ASST3 config file and notice that the
+    <kbd>arch/mips/mips/dumbvm.c</kbd> file will be omitted from your kernel.
+    You will undoubtedly need to add new files to the system for this
+    assignment, e.g., <kbd>kern/vm/vm.c</kbd> or
+    <kbd>kern/arch/mips/mips/mipsvm.c</kbd>. Be sure to  update
+    the file <kbd>kern/conf/conf.kern</kbd>, or, for machine-dependent files,
+    <kbd>kern/arch/mips/conf/conf.arch</kbd>, to include any new files that
+    you create. Take care to place files in the "correct" place, separating
+    machine-dependent components from  machine-independent components.</p> <p> You should also now restrict your physical memory to 512 KB by editing
+    the <tt>ramsize</tt> line in your <tt>sys161.conf</tt> file.</p> <p> Now, config an ASST3 kernel, run <tt>make depend</tt>, and build it.
+    You are now ready to begin the assignment.</p> <h3>TLB Handling</h3> <p> In this part of the assignment, you will modify OS/161 to handle TLB
+    faults. Additionally, you need to guarantee that the TLB state is
+    initialized properly on a context switch. One implementation alternative
+    is to invalidate all the TLB entries on a context switch. The entries are
+    then re-loaded by taking TLB faults as pages are referenced. If
+    you do this,  be sure to copy any relevant state maintained by the TLB
+    entries back into the page table before invalidating them. (For example,
+    in order for the paging algorithm to know which pages must be written to
+    disk before eviction, you must make sure that the information about
+    whether a page is dirty or not is properly propagated back into the page
+    table.) An alternative to invalidating everything is to use the 6-bit
+    address space IDs and maintain separate processes in the TLB
+    simultaneously. Please separate implementation of the TLB entry
+    replacement algorithm from the actual piece of code that handles the
+    replacement.</p> <h3>Paging</h3> <p> In this part of the assignment, you will modify OS/161 to handle page
+    faults. When you have completed this problem, your system will generate
+    an exception when a process tries to access an address that is not
+    memory-resident and then handle that exception and continue running the
+    user process.</p> <p> You will need routines to move a page from disk to memory and from
+    memory to disk.</p> <p> You will need to decide how to implement backing store (the place on
+    disk where you store virtual pages not currently stored in physical
+    memory). The default <kbd>sys161.conf</kbd> includes two disks; you can
+    use one of those disks for swapping. Please do swap to a disk and not
+    somewhere else (such as a file). Also, be sure not to use that disk
+    for anything else! To help prevent errors or misunderstandings, please
+    have your system print the location of the swap space when it boots.</p> <p> You will need to store evicted pages and find them when you need them.
+    You should maintain a bitmap that describes the space in your swap area.
+    Think of the swap area as a collection of chunks, where each chunk holds
+    a page. Use the bitmap to keep track of which chunks are full and which
+    are empty. The empty chunks can be evicted into. You also need to keep
+    track, for each page of a given address space, of which chunk in the swap
+    area it maps onto. When there are too many pages to fit in physical
+    memory, you can write (modified) pages out to swap.</p> <p>When the time comes to bring a page into memory, you will need to know
+    which physical pages are currently in use. One way to manage physical
+    memory is to maintain a <em>core map</em>, a sort of reverse page table.
+    Instead of being indexed by virtual addresses, a core map is indexed by
+    its physical page number and contains the virtual address and address
+    space identifier for the virtual page currently backed by the page in
+    physical memory. When you need to evict a page, you look up the physical
+    address in the core map, locate the address space whose page you are
+    evicting and modify the corresponding state information to indicate that
+    the page will no longer be in memory. Then you can evict the page. If the
+    page is dirty, it must first be written to the backing store. In some
+    systems, the writing of dirty pages to backing  store is done in the
+    background by a daemon. As a result, when the time comes to evict a page,
+    the page itself usually clean (that is, it has been written to backing
+    store, but not modified since then). You must design and implement this
+    functionality in your system. You will need to create a thread that
+    periodically examines pages in memory and writes them to backing store if
+    they are dirty.</p> <p> Your paging system will also need to support page allocation requests
+    generated by <kbd>kmalloc()</kbd>. You should review <kbd>kmalloc()</kbd>
+    to understand how these requests are generated, so that your system will
+    respond to them correctly.</p> <p>Please implement one page replacement policy for ASST3.</p> <h2>Assignment Submission</h2> <p>Use the forms below to submit your design document and implementation
+    patch file. Good luck!</p> <h3 class="handmein">Design Executive Summary</h3> <p>Please submit a similar 2-page PDF document to the one that you
+    submitted for ASST2. (Review that assignment handout if needed.) You
+    should explain how you plan to complete ASST3.</p> <p>Some of the key issues are:</p> <ul> <li>What will your page tables look like?</li> <li>What should you put in each page table entry (PTE)?</li> <li>What will your core map look like?</li> <li>In what order can TLB faults and page faults occur? For example, 
+      can a page fault occur without causing a TLB fault?</li> <li>How will you and your partner divide up the work?</li> <li>What is your strategy for splitting the assignment into smaller
+      pieces that can be developed and tested and tested separately?</li> </ul> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F3">log in</a> so that you can submit your answers.
+    </p> </blockquote> <div class="question design"><div class="name"> asst3 design </div><a class="anchor" name="Q7"><div class="text"><p>As a reminder, your design should be:</p><ul><li>Two pages or fewer, but two pages is probably just about the minimum.</li><li>Written in a readable font with reasonable margins.</li><li>Uploaded in PDF format.</li></ul></div></a></div> <h3 class="handmein">ASST3 Patch</h3> <p>Please prepare a patch in the same way that you did for ASST2. <em>Do
+      not forget to commit your changes!</em> Any problems creating a patch
+    that force you to resubmit will cost your group late days, so
+    double-check that your patch contains the changes you expect it to
+    contain. Use <kbd>git status</kbd> to ensure that your working directory
+    is clean before you create the patch.</p> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F3">log in</a> so that you can submit your answers.
+    </p> </blockquote> <div class="question implementation"> </div> <h2>Manage Your SSH Keys</h2> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F3">log in</a> so that you can manage your keys.
+    </p> </blockquote> </div> <script type="text/javascript" src="../js/jquery-1.7.1.js"></script> <div></div> </body> </html>

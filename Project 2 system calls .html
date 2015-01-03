@@ -1,0 +1,522 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> <html xmlns="http://www.w3.org/1999/xhtml"> <head> <title>CSE421</title> <link rel="stylesheet" href="../css/reset.css" /> <link rel="stylesheet" href="../css/menu.css" /> <link rel="stylesheet" href="../css/cse421.css" /> <link rel="stylesheet" href="../css/index.css" /> <link rel="stylesheet" href="../css/assignments.css" /> <meta http-equiv="content-type" content="text/html;charset=utf-8" /> </head> <body> <div id="top"> <p>cse421@zion:~$ whoami<br/> <strong>CSE421/521 @ SUNY Buffalo&mdash;Spring 2012</strong></p> </div> <div id="menu"> <p>cse421@zion:~$ info cse421</p> <ul style="margin-bottom:0px;"> <li><a href="../index.html">home</a></li> <li><a href="../lecture/index.html">lecture</a></li> <li><a href="current/index.html">assign</a></li> <li><a href="../video/index.html">video</a></li> <li><a href="../forum/index.html">forum</a></li> <li class="login"> <a href="../accounts/login?next=%252FASST%252F2">
+          login</a></li> </ul> <ul style="margin-bottom:0px;"> <li><a href="current/index.html">ASST0</a></li> <li><a href="1">ASST1</a></li> <li><a href="2">ASST2</a></li> <li><a href="3">ASST3</a></li> </ul> </div> <div class="assignment"> <div class="matrixquote"> <a class="matrixquote"
+       href="http://www.youtube.com/watch?v=MXQozTxQSiE"
+       target="_blank">
+     The Matrix is a system, Neo. That system is our enemy.
+      <div style="text-align:right;"> <strong>&mdash;Morpheus</strong> </div> </a> </div> <h1>ASST2: System Calls and Process Support</h1> <h2>Introduction</h2> <p>In this assignment you will add process and system call support to
+    your OS/161 kernel. Currently limited (to no) support exists for
+    running user processes&mdash;the tests you have run up to this point
+    have run in the kernel as kernel threads. By the time you finish ASST2
+    you will have the ability to launch a simple shell and enter a
+    somewhat-familiar UNIX environment. Indeed, our future testing suites
+    will be launched as user processes, not from the kernel menu.</p> <blockquote class="aside"><p>I mean, how many kernels have a menu,
+      anyway? (Not many, maybe none.)</p></blockquote> <p>In contrast to ASST1, ASST2 requires a great deal more thought and
+    planning. We are not giving you many examples. We have not designed
+    your data structures for you. You will need to determine what needs to
+    be implemented, where to put the code required, how the data structures
+    are designed and implemented, and how everything fits together. We just
+    care that your system calls fulfill the interface specification.</p> <p>As a final piece of advice, ASST2 and ASST3 begin to produce code
+    bases that are large, complex, and potentially <i>very</i> difficult to
+    debug. <em>You do not want to introduce bugs into your kernel.</em>
+    Fine, you might say: how do I do that? Our advice&mdash;slow down,
+    design, think, design again, discuss with your partner, and slow down
+    again all <em>before</em> writing a <i>single line</i> of code.</p> <p>The following instructions detail what you must do to complete ASST2.
+    Sections marked <span class="handmein">like this</span> include graded
+    tasks to complete.</p> <h3>Objectives</h3> <p>After completing ASST2 you should:</p> <ol> <li>Be able to write code that meets a specified interface definition.</li> <li>Understand how to represent processes in an operating system.</li> <li>Have designed and implemented data structures to manage processes
+    and scheduling in an operating system.</li> <li>Understand how to implement system calls.</li> <li>Understand the theory and practice of process scheduling.</li> </ol> <h2>Partnered at Last</h2> <p>This is the first assignment that requires you to work in teams of two.
+    This may be difficult if you are accustomed to working alone, but it is
+    essential for the completion of the remaining assignments an entirely
+    essentially skill to develop. Today, nobody writes software alone, and
+    groups of much larger than two are the norm. These assignments are too
+    complex to be done alone, and you will gain valuable real-world
+    experience from learning to work in a team effectively.</p> <h3>Where to Start</h3> <p>In order to begin working together, you and your partner need to decide
+    on a code base and then need to set up a shared Git repository. Choose
+    your code base with care. The assignments are cumulative and you will
+    have to live with the consequences of this decision for the remainder of
+    the semester. We suggest that you and your partner resolve conflicts
+    about things like programming style and naming conventions now in order
+    to avoid confusion later. Working together on a program can be much more
+    demanding and frustrating than doing lab work together. (Imagine writing
+    a coherent term paper with someone else!)</p> <p>The code base you select should be a working OS/161 system with clean,
+    well-commented, bullet-proof synchronization primitives. You and your
+    partner should share your solutions to the previous assignments (it's
+    good practice to learn to read and understand someone else's code) and
+    decide what your code base will be. You are free to choose either
+    partner's code, to merge your solutions, or to use the solution set.
+    (Please contact the course staff to gain access to the solution set
+    synchronization primitives.)</p> <p>Once you have selected a code base, refer to the forthcoming
+    instructions below on how to set up and manage a remote Git tracking
+    repository.</p> <h3>Issues to Address</h3> <p>There are a number of issues that you and your partner should work out
+    now, when things are calm, so you needn't figure them out at 2:00 AM in
+    the heat of the moment.</p> <h4>Naming Conventions</h4> <p>It's a good idea to select some rudimentary protocol for naming global
+    variables and variables passed as arguments to functions. This way, you
+    can just ask your partner to write some function and, while s/he's doing
+    it, you can make calls to that function in your own code, confident that
+    you have a common naming convention from which to work. Be consistent in
+    the way you write the names of functions: given a function called "my
+    function", one might write its name as <kbd>my_function</kbd>,
+    <kbd>myFunction</kbd>, <kbd>MyFunction</kbd>, <kbd>mYfUnCtIoN</kbd>,
+    <kbd>ymayUnctionFay</kbd>, etc. Pick one model and stick to it (although
+    we discourage the last two examples).</p> <h4>Git Use</h4> <p>Since you and your partner will be using Git to manage your work, you
+    will need to decide when and how often to commit and push changes. Our
+    advice is to commit locally early and often, but be more cafeful about
+    points where you push and pull code through the tracking repository. Use
+    the fact that Git separates commits from code sharing to help manage your
+    workflow, sharing code with your partner only when you are reasonably
+    confident that it is working properly. Additionally, you should agree
+    upon how much detail to log when committing files, what tests to run on a
+    new version to make sure you haven't inadvertently broken something, and
+    how to ensure that the patch you submit behaves as expected.</p> <blockquote class="aside"><p>Many struggled with the submission procedures
+      for ASST1. This was partly our fault, but we will be much more precise
+      and less forgiving this time. Late submissions <em>will</em> cost you
+      late days.</p></blockquote> <p>Clear, explicit Git commit messages are essential. If you are
+    incommunicado for some reason, it is vital for your partner to be able to
+    reconstruct your design, implementation and debugging process from your
+    Git logs. In general, leaving something uncommitted for a long period of
+    time is dangerous: it means that you are undertaking too large a piece of
+    work and have not broken it down effectively. Once some new code compiles
+    and doesn't break the world, commit it. When you've got a small part
+    working, commit it. When you've designed something and written a lot of
+    comments, commit it. Commits are free. Hours spent hand-merging hundreds
+    of lines of code wastes time you'll never get back. The combination of
+    frequent commits and good, detailed comments will facilitate more
+    efficient program development. Again, Git helps you here: committing does
+    <em>not</em> require pushing it to the remote repository and sharing it
+    with your partner.</p> <p> Use the many excellent features of Git to help you. You may want to
+    explore, for example:</p> <ul> <li><em>tags</em>, to identify when major features are added and/or
+    stabilized.</li> <li><em><kbd>git stash</kbd></em> to help save local uncommitted state in
+    case you are called away to quickly fix a bug that your partner has
+    identified.</li> <li><em>branches</em> to isolate logically-distinct code development.</li> </ul> <p>Keep in mind, however, that <em>you are responsible</em> for generating
+    a sane patch to submit at the completion of the assignment. Incorrect
+    usage of the many clever Git features will not be treated as an excuse
+    for mangled or non-working submissions.</p> <h3>Communication</h3> <p>Nothing replaces good, open communication between partners. The more you
+    can direct that communication to issues of content ("How shall we design
+    <kbd>sys_execv()</kbd>?")  instead of procedural details ("What do you
+    mean, you never checked in your version of <kbd>foo.c</kbd>?"), the more
+    productive your group will be.</p> <p>In your design documents for each assignment, you should identify, at
+    least in general terms, who was responsible for the various parts of your
+    solutions. There are a variety of reasonable ways to split up the work
+    for ASST2 fairly.</p> <p>If at any time during the course of the semester, you and your partner
+    realize that you are having difficulty working together, please contact
+    the course staff. We will work with you to help your partnership work
+    more effectively, or in extreme circumstances, we will help you find new
+    partners. Do not suffer in silence&mdash;please come talk with us.</p> <h2>Git-ing Started</h2> <p>It all comes back to Git in the end.</p> <p>Git-ting started on ASST2 requires that you do learn how to use Git
+  remote repositories&mdash;which we introduced you to during ASST1&mdash;to
+  share your work with your partner and collaborate effectively. This is not
+  a major change to the workflow that you have already become use to. The one
+  addition is that now you will synchronize with your partner by using a
+  remote repository.</p> <p>But before you do that, make sure that you have the changes we've made
+  for ASST2.</p> <h3>ASST2 Changes</h3> <p>We have made a number of small changes to your base OS/161 source tree
+  to support ASST2. We do not think that these changes will overlap with ones
+  that you made for ASST1, but if they do it is your job to reconcile any
+  merge conflicts that occur.</p> <p>As a brief summary of the changes we made:</p> <ul> <li><kbd>kern/conf/conf.kern</kbd>: added a <kbd>defaultscheduler</kbd>
+    configuration option.</li> <li><kbd>kern/conf/ASST2</kbd>: enabled the <kbd>defaultscheduler</kbd>
+    option for the default ASST2 configuration.</li> <li><kbd>kern/conf/ASST2-OPT</kbd>: disabled the
+    <kbd>defaultscheduler</kbd> option for your ASST2 scheduler
+    configuration.</li> <li><kbd>kern/thread/thread.c</kbd>: duplicate <kbd>schedule()</kbd>
+    across the <kbd>defaultscheduler</kbd> <kbd>#define</kbd>. </li> </ul> <p>As of 05 Mar 2012 we have also added a second CV test that should check
+  a few more corner cases. That change was made to
+  <kbd>kern/test/synchtest.c</kbd> and <kbd>kern/include/test.h</kbd> and the
+  menu item added in <kbd>kern/startup/menu.c</kbd>.</p> <p>Note that this brings the ASST2 patch target to <kbd>25466b88</kbd>.
+  Please use either <kbd>git pull origin master</kbd>&mdash;if you have not
+  set up your shared repository as indicated below&mdash;or <kbd>git pull
+  staff master</kbd>, if you have, to fetch our changes and create your patch
+  against this commit.</p> <h3>Choosing a Codebase</h3> <p>Once you have a partner and both you and your partner have uploaded your
+  SSH key, the next step is to choose the repository that you will use as a
+  base. The partner that contributes this code will upload their code to the
+  remote repository. The other partner will archive their local changes and
+  then clone their partner's repository using the remote repository.</p> <p>The key criteria for choosing what codebase to use is that it have
+  working and well-commented synchronization primitives, in particular
+  <em>locks</em> and <em>condition variables</em>. If you do not have a code
+  base that can pass the <kbd>sy1</kbd>, <kbd>sy2</kbd> and <kbd>sy3</kbd>
+  synchronization tests, you either need to complete your synchronization
+  primitives or contact the course staff about using the ASST1 solution set.
+  You will need working semaphores, locks, and condition variables to
+  complete ASST2 and ASST3. (Reader-writer locks may come in handy but are
+  not essential; the code you wrote to solve the synchronization problems
+  isn't even part of your compiled kernel after ASST1.</p> <h3>Git-ting Remote</h3> <p>Git remote repositories provide a meeting place for multiple developers
+  working on a shared codebase, or even a single developer working from
+  multiple machines. Remote tracking repositories differ from local
+  repositories in that they <em>do not</em> contain a working directory, only
+  the repository state stored by Git.</p> <p>Working with remote repositories is easy. You develop locally as usual,
+  commiting your changes early, often and when appropriate. All commits still
+  happen locally and only affect your local repository.</p> <p>When you are ready to share your changes with others&mdash;in this case,
+  your partner&mdash;you execute a <kbd>git push</kbd> command. This
+  transmits all your local commits to the remote tracking repository where
+  they can be retrieved. Your partner, who also has access to the remote
+  tracking repository, retrieves your changes by executing a <kbd>git
+  pull</kbd>. This command fetches your changes and <i>attempts</i> to merge
+  them into your local repository. As with most source control merging, this
+  does not always succeed, and so you may need to complete the merge by
+  hand.</p> <p>The command we've discussed above may look familiar, and indeed, you've
+  already been using a Git remote repository. When you <kbd>git clone</kbd>'d
+  our CSE421 repository to start ASST0, it set up your source tree to track
+  our remote repository. If you execute the command</p> <pre class="code">
+cse421@zion:~/src$ git remote -v</pre> <p>the output will indicate that you are tracking our remote repository.
+  This is how we have been pushing changes to your local source tree, and we
+  will continue to do this throughout the semester.</p> <p>Of course, if you are observant you may notice that you have never
+  executed a <kbd>git push</kbd> so far this semester. You are welcome to
+  try, but luckily for us you have read-only access to our course repository.
+  You will have both read and write access to the shared repository you use
+  to collaborate with your partner.</p> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F2">log in</a>
+        so that you can view information about establishing shared Git
+        repositories.</p> </blockquote> <h2>Assignment Organization</h2> <p>Your current OS/161 system has minimal support for running
+    executables&mdash;nothing that could be considered a true process. ASST2
+    starts the transformation of OS/161 into a true multi-tasking operating
+    system. After the next assignment, it will be capable of running multiple
+    processes at once from actual compiled programs stored in your account.
+    These programs will be loaded into OS/161 and executed in user mode by
+    System/161. This will occur under the control of your kernel and the
+    command shell in <kbd>bin/sh</kbd>.</p> <p>First, however, you must implement the interface between user-mode
+    programs&mdash; or "userland"&mdash;and the kernel. As usual, we provide
+    part of the code you will need. Your job is to identify, design and build
+    the missing pieces.</p> <p>You will also be implementing the subsystem that keeps track of the
+    multiple processes you will have in the future. You must decide what data
+    structures you will need to hold the data pertinent to a process.</p> <blockquote class="note"><p>It may be helpful to look at kernel include
+      files of your favorite operating system for suggestions, specifically
+      the <kbd>proc</kbd> structure. That said, these structures are likely
+      to include <i>much more</i> process (or task) state than you need to correctly
+      complete this assignment.</p></blockquote> <p>The first step is to read and understand the parts of the system that
+    we have written for you. Our code can run one user-level C program at a
+    time as long as it doesn't want to do anything but shut the system down.
+    We have provided sample user programs that do this (reboot, halt,
+    poweroff), as well as others that make use of features you will be adding
+    in this and future assignments.</p> <p>So far, all the code you have written for OS/161 has only been run
+    within, and only been used by, the operating system kernel. In a real
+    operating system, the kernel's main function is to provide support  for
+    user-level programs. Most such support is accessed via system calls. We
+    give you one system call, <kbd>reboot()</kbd>, which is implemented in
+    the function <kbd>sys_reboot()</kbd> in <kbd>main.c</kbd>. In GDB, if you
+    put a breakpoint on <kbd>sys_reboot</kbd> and run the <kbd>reboot</kbd>
+    program, you can print a backtrace in GDB to see how it got there.</p> <h3>User Programs</h3> <p>Our System/161 simulator can run normal programs compiled from C. The
+    programs are compiled with a cross-compiler, <kbd>os161-gcc</kbd>. This
+    compiler runs on the host machine and produces MIPS executables and is
+    the same compiler used to compile the OS/161 kernel. To create new user
+    programs, you will need to edit the <kbd>Makefile</kbd> in
+    <kbd>bin</kbd>, <kbd>sbin</kbd>, or <kbd>testbin</kbd> (depending on
+    where you put your programs) and then create a directory similar to those
+    that already exist. Use an existing program and its <kbd>Makefile</kbd>
+    as a template.</p> <h2 class="handmein">Design</h2> <p>Beginning with this assignment, please note that your <em>design
+      documents</em> become an important part of the work you submit. The
+    design documents should clearly reflect the development of your solution.
+    They should not merely explain what you programmed. If you try to code
+    first and design later, or even if you design hastily and rush into
+    coding, you will most certainly end up confused and frustrated. Don't do
+    it! Work with your partner to plan everything you will do. Don't even
+    think about coding until you can precisely explain to each other what
+    problems you need to solve and how the pieces relate to each other.</p> <p> Note that it can often be hard to write (or talk) about new software
+    design&mdash;you are facing problems that you have not seen before, and
+    therefore even finding terminology to describe your ideas can be
+    difficult. There is no magic solution to this problem, but it gets easier
+    with practice. The important thing is to go ahead and try.
+    Always try to describe your ideas and designs to your partner. In order
+    to reach an understanding, you may have to invent terminology and
+    notation&mdash;this is fine, just be sure to document it in your design.
+    If you do this, by the time you have completed your design, you will find
+    that you have the ability to efficiently discuss problems that you have
+    never seen before.</p> <p>Given the size of the class and student-to-TA ratio, we will not be able
+    to read detailed designs from every group. However, we would like each
+    group to submit a two-page <em>executive summary</em> by <strong
+      class="duedate">Wednesday 07 Mar 2012</strong>. The course staff will
+    review these briefer documents as quickly as possible in the hopes that
+    early feedback will help you avoid making serious mistakes. You should
+    also print out a copy of this two-page summary&mdash;double-sided, of
+    course&mdash;and bring it when you come in to office hours for help.
+    Since every group will be implementing things differently, this will
+    serve as a helpful guide to the TA as far as what <em>your</em> group is
+    trying to do.</p> <p>The executive summary should demonstrate that you understand the key
+    design issues related to ASST2. Although it is a very good thing to do in
+    a full-length design, your summary should <em>not</em> include
+    pseudo-code or function definitions. It should include:</p> <ul> <li>A description of each new piece of functionality you need to add for
+      ASST2.</li> <li>A list and brief description of any new data structures you will have
+      to add to the system.</li> <li>Indications of what, if any, existing code you may model your
+      solution off of.</li> <li>A description of how accesses to shared state will be synchronized,
+      if necessary.</li> <li>A breakdown of who will do what between the partners, and a timeline
+      indicating when assignment tasks will be finished and when testing will
+      take place.</li> </ul> <p>In addition, the design should be clearly written and well-formatted to
+    make it easy to refer to as you work. Of course, we expect and
+    <em>strongly encourage</em> you to also develop a more detailed design
+    that you use during coding and testing. The executive summary is in many
+    ways an unhappy compromise between the design goals of the class and the
+    small size of the course staff.</p> <h3>Design Considerations</h3> <p>Here are some additional questions and thoughts to aid in writing your
+    design document. They are not, by any means, meant to be a comprehensive
+    list of all the issues you will want to consider. You do not need to
+    explicit answer or discuss these questions in your executive summary, but
+    you should at least think about them.</p> <p>Your system must allow user programs to receive arguments from the
+    command line. For example, you should be able to run the following
+    program:</p> <pre class="code">
+char  *filename = "/bin/cp";
+char  *args[4];
+pid_t  pid;
+
+args[0] = "cp";
+args[1] = "file1";
+args[2] = "file2";
+args[3] = NULL;
+
+pid = fork();
+
+if (pid == 0) {
+execv(filename, argv);
+}</pre> <p>The code snippet above loads the executable file <kbd>/bin/cp</kbd>, install it
+    as a new process, and executes it. The new process will then find
+    <kbd>file1</kbd> on the disk and copy it to <kbd>file2</kbd>.</p> <p>Passing arguments from one user program, through the kernel, into
+    another user program, is a bit of a chore. What form does this take in C?
+    This is rather tricky, and there are many ways to be led astray. You will
+    probably find that very detailed pictures and several walk-throughs will
+    be most helpful. This piece of code, in particular, is
+    <em>impossible</em> to write correctly without being carefully designed
+    beforehand.</p> <blockquote class="aside"><p>Go on, try and prove us wrong!</p></blockquote> <p>Some other questions to consider:</p> <ul> <li>What primitive operations exist to support the transfer of data to and
+      from kernel space?  Do you want to implement more on top of these?</li> <li>When implementing <kbd>exec()</kbd>, how will you determine: (a) the
+      stack pointer initial value; (b) the initial register contents; (c) the
+      return value; (d) whether you can execute the program at all?</li> <li>You will need to <em>bullet-proof</em> the OS/161 kernel from user
+      program errors. There should be nothing a user program can do&mdash;and
+      we will try <i>almost everything</i>&mdash;to crash the operating
+      system, with the exception of explicitly asking the system to
+      halt.</li> <li>What new data structures will you need to manage multiple
+      processes?</li> <li>What relationships do these new structures have with the rest of the
+      system?</li> <li>How will you manage file accesses? When the shell invokes the
+      <kbd>cat</kbd> command, and the <kbd>cat</kbd> command starts to read
+      <kbd>file1</kbd>, what will happen if another program also tries to
+      read <kbd>file1</kbd>? What would you like to happen?</li> </ul> <h2 class="handmein">Code Reading</h2> <p>To help you get started designing, we have provided the following
+    questions as a guide for reading through the code. We recommend that you
+    and your partner look over and answer the code reading questions
+    <em>together</em>. You may want to start by reviewing the questions
+    separately, but then meet to talk over your answers and look at the code
+    together. Once you have done this, you should be ready to discuss
+    strategy for designing your code for this assignment. <em>A big part of
+      ASST2 is figuring out what to do, not just how to do it.</em></p> <p>Submit the answers to the code reading questions using the form
+    below.</p> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F2">log in</a> so that you can submit your answers.
+    </p> </blockquote> <h3>Existing Process Support</h3> <p>The key files that are responsible for the loading and running of
+    user-level programs are <kbd>loadelf.c</kbd>, <kbd>runprogram.c</kbd>,
+    and <kbd>uio.c</kbd>, although you may want to add more of your own
+    during this assignment. Understanding these files is the key to getting
+    started with the implementation of multiprogramming. Note that to answer
+    some of the questions, you will have to look in other files.</p> <h4><kbd>kern/syscall/loadelf.c</kbd></h4> <p>This file contains the functions responsible for loading an ELF
+    executable from the filesystem and into virtual memory space.  (ELF is
+    the name of the executable format produced by <tt>cs161-gcc</tt>.) Of
+    course, at this point this virtual memory space does not provide what is
+    normally meant by virtual memory&mdash;although there is translation
+    between virtual and physical addresses, there is no mechanism for
+    providing more memory than exists physically. You will fix this during
+    ASST3. For now, don't worry about it.</p> <h4><kbd>kern/syscall/runprogram.c</kbd></h4> <p>This file contains only one function, <kbd>runprogram()</kbd>, which is
+    responsible for running a program from the kernel menu. It is a good base
+    for writing the <kbd>execv()</kbd> system call, but only a base&mdash;
+    when writing your design doc, you should determine what more is required
+    for <kbd>execv()</kbd> that <kbd>runprogram()</kbd>
+    does not concern itself with. Additionally, once you have designed your
+    process system, <kbd>runprogram()</kbd> should be altered to start
+    processes properly within this framework. For example, a program started
+    by <kbd>runprogram()</kbd> should have the standard file descriptors
+    available while it's running.</p> <h4><kbd>kern/lib/uio.c</kbd></h4> <p>This file contains functions for moving data between kernel and user
+    space. Knowing when and how to cross this boundary is critical to
+    properly implementing userlevel programs, so this is a good file to read
+    very carefully. You should also examine the code in
+    <kbd>kern/vm/copyinout.c</kbd>.</p> <div class="question codereading"> <a class="anchor" name="Q0"> <div class="text"> What are the ELF magic numbers? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q1"> <div class="text"> What is the difference between <kbd>UIO_USERISPACE</kbd> and <kbd>UIO_USERSPACE</kbd>? When should one use <kbd>UIO_SYSSPACE</kbd> instead? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q2"> <div class="text"> Why can the <kbd>struct uio</kbd> that is used to read in a segment be allocated on the stack in <kbd>load_segment()</kbd>? Or, put another way, where does the memory read actually go? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q3"> <div class="text"> In <kbd>runprogram()</kbd>, why is it important to call <kbd>vfs_close()</kbd> before going to usermode? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q4"> <div class="text"> What function forces the processor to switch into usermode? Is this function machine dependent? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q5"> <div class="text"> In what file are <kbd>copyin</kbd> and <kbd>copyout</kbd> defined? <kbd>memmove</kbd>? Why can't <kbd>copyin</kbd> and <kbd>copyout</kbd> be implemented as simply as <kbd>memmove</kbd>? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q6"> <div class="text"> Briefly, what is the purpose of <kbd>userptr_t</kbd>? </div> </a> </div> <h3><kbd>kern/arch/mips</kbd>: Traps and System Calls</h3> <p>Exceptions are the key to operating systems. They are the mechanism that
+  enables the operating system to regain control of execution and therefore
+  do its job. You can think of exceptions as the interface between the
+  processor and the operating system. When the OS boots, it installs an
+  <i>exception handler</i>, usually carefully crafted assembly code, at a
+  specific address in memory. When the processor raises an exception, it
+  invokes this, which sets up a <i>trap frame</i> and calls into the
+  operating system.  Since <i>exception</i> is such an overloaded term in
+  computer science, operating system lingo for an exception is a
+  <em>trap</em>&mdash;when the OS traps execution. Interrupts are
+  exceptions, and more significantly for this assignment, so are system
+  calls. Specifically, <kbd>kern/arch/mips/syscall/syscall.c</kbd> handles
+  traps that happen to be syscalls. Understanding this code is key to being
+  a real operating systems junkie, so we highly recommend reading through
+  it carefully.</p> <h4><kbd>locore/trap.c</kbd></h4> <p><kbd>mips_trap()</kbd> is the key function for returning control to the
+  operating system. This is the C function that gets called by the assembly
+  exception handler. <kbd>enter_new_process()</kbd> is the key function for
+  returning control to user programs. <kbd>kill_curthread()</kbd> is the
+  function for handling broken user programs. When the processor is in
+  usermode and hits something it can't handle&mdash;a bad instruction or
+  our favorite divide-by-zero&mdash; it raises an exception. There's no way
+  to recover from this, so the OS needs to kill off the process. Part of
+  this assignment is writing a useful version of this function.</p> <h4><kbd>syscall/syscall.c</kbd></h4> <p><kbd>syscall()</kbd> is the function that delegates the actual work of a
+  system call to the kernel function that implements it. Notice that
+  <kbd>reboot()</kbd> is the only case currently handled. You will also
+  find a function, <kbd>enter_forked_process()</kbd>, which is a stub where
+  you will place your code to implement the <kbd>fork()</kbd> system call.
+  It should get called from <kbd>sys_fork()</kbd>.</p> <div class="question codereading"> <a class="anchor" name="Q7"> <div class="text"> What is the numerical value of the exception code for a MIPS system call? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q8"> <div class="text"> How many bytes is an instruction in MIPS? (Answer this by reading <kbd>syscall()</kbd> carefully, not by looking somewhere else.) </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q9"> <div class="text"> Why do you probably want to change the implementation of <kbd>kill_curthread()</kbd>? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q10"> <div class="text"> What would be required to implement a system call that took more than 4 arguments? </div> </a> </div> <h3>Support Code for User Programs</h3> <p>As important as the kernel implementation of system calls is the
+  userspace code that allows C programs to use them. This code can be found
+  under the <kbd>user/</kbd> directory at the top of your OS/161 source
+  tree. Note that you can complete this assignment without modifying
+  user-level code, and you <em>should not break any interface conventions
+    already present</em>&mdash;don't swap the location of the
+  <kbd>argc</kbd> and <kbd>argv *</kbd> arguments to <kbd>main</kbd>, for
+  example. However, it is useful to understand how this code works and how
+  it implements the other side of the system call interface.</p> <h4><kbd>user/lib/crt0/mips/</kbd></h4> <p>This is the user program startup code. There's only one file in here,
+  <kbd>mips-crt0.S</kbd>, which contains the MIPS assembly code that
+  receives control first when a user-level program is started. It calls the
+  user program's <kbd>main()</kbd>. This is the code that your
+  <kbd>execv()</kbd> implementation will be interfacing to, so be sure to
+  check what values it expects to appear in what registers and so
+  forth.</p> <h4><kbd>user/lib/libc/</kbd></h4> <p>This is the user-level C library. There's obviously a lot of code here.
+  We don't expect you to read it all, although it may be instructive in the
+  long run to do so. For present purposes you need only look at the code
+  that implements the user-level side of system calls, which we detail
+  below.</p> <h4><kbd>user/lib/libc/unix/errno.c</kbd></h4> <p>This is where the global variable errno is defined.</p> <h4><kbd>user/lib/libc/arch/mips/syscalls-mips.S</kbd></h4> <p>This file contains the machine-dependent code necessary for implementing
+  the user-level side of MIPS system calls.</p> <h4><kbd>build/user/lib/libc/syscalls.S</kbd></h4> <p>This file is created from <kbd>syscalls-mips.S</kbd> at compile time and
+  is the actual file assembled into the C library.  The actual names of the
+  system calls are placed in this file using a script called
+  <kbd>syscalls/gensyscalls.sh</kbd> that reads them from the kernel's
+  header files. This avoids having to make a second list of the system
+  calls. In a real system, typically each system call stub is placed in its
+  own source file, to allow selectively linking them in. OS/161 puts them
+  all together to simplify the build.</p> <div class="question codereading"> <a class="anchor" name="Q11"> <div class="text"> What is the purpose of the <kbd>SYSCALL</kbd> macro? </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q12"> <div class="text"> What is the MIPS instruction that actually triggers a system call? (Answer this by reading the source in this directory, not looking somewhere else.) </div> </a> </div> <div class="question codereading"> <a class="anchor" name="Q13"> <div class="text"> Now that OS/161 supports 64-bit values, <kbd>lseek()</kbd> takes and returns a 64-bit offset value. Thus, <kbd>lseek()</kbd> takes a 32-bit file handle (<kbd>arg0</kbd>), a 64-bit offset (<kbd>arg1</kbd>), a 32-bit whence (<kbd>arg3</kbd>), and needs to return a 64-bit offset value. In <kbd>void syscall(struct trapframe *tf)</kbd> where will you find each of the three arguments (in which registers) and how will you return the 64-bit offset? </div> </a> </div> <h2 class="handmein">Design and Implementation</h2> <p>Finally, the fun stuff.</p> <p>Implement system calls and exception handling. The full range of system
+  calls that we think you might want over the course of the semester is
+  listed in <kbd>kern/include/kern/syscall.h</kbd>. For this assignment you
+  should implement:</p> <ul> <li>File system support: <kbd>open</kbd>, <kbd>read</kbd>,
+    <kbd>write</kbd>, <kbd>lseek</kbd>, <kbd>close</kbd>, <kbd>dup2</kbd>,
+    <kbd>chdir</kbd>, and <kbd>__getcwd</kbd>.</li> <li>Process support: <kbd>getpid</kbd>, <kbd>fork</kbd>,
+    <kbd>execv</kbd>, <kbd>waitpid</kbd>, and <kbd>_exit</kbd>.</li> </ul> <p>It's crucial that your syscalls handle all error conditions gracefully
+  without crashing your kernel. <em>You should consult the OS/161 man
+    pages</em> included in the distribution under <kbd>man/syscall</kbd>
+  and understand fully the system calls that you must implement. You must
+  return the error codes as decribed in the man pages.</p> <p>Additionally, your syscalls must return the correct value&mdash;in case
+  of success&mdash;or error code&mdash;in case of failure&mdash;as
+  specified in the man pages. The grading scripts rely on the return of
+  appropriate error codes and so adherence to the guidelines is as
+  important as the correctness of your implementation.</p> <p>The file <kbd>user/include/unistd.h</kbd> contains the user-level
+  interface definition of the system calls that you will be writing for
+  OS/161 (including ones you will implement in later assignments).  This
+  interface is different from that of the kernel functions that you will
+  define to implement these calls. You need to design this interface and
+  put it in <kbd>kern/include/syscall.h</kbd>. As you discovered in ASST0,
+  the integer codes for the calls are defined in
+  <kbd>kern/include/kern/syscall.h</kbd>.</p> <p>You need to think about a variety of issues associated with implementing
+  system calls. Perhaps the most obvious one: can two different user-level
+  processes (or user-level threads, if you choose to implement them) find
+  themselves running a system call at the same time? Be sure to argue for
+  or against this, and explain your final decision in the
+  executive summary and design document.</p> <h3>File System Support</h3> <p>For any given process, the first file descriptors (0, 1, and 2) are
+  considered to be standard input (<kbd>stdin</kbd>), standard output
+  (<kbd>stdout</kbd>), and standard error (<kbd>stderr</kbd>). These file
+  descriptors should start out attached to the console device
+  (<kbd>"con:"</kbd>), but your implementation must allow programs to use
+  <kbd>dup2()</kbd> to change them to point elsewhere.</p> <p>Although these system calls may seem to be tied to the filesystem, in
+  fact, they are really about manipulation of file descriptors, or
+  process-specific filesystem state. A large part of this assignment is
+  designing and implementing a system to track this state. Some of this
+  information&mdash;such as the current working directory&mdash;is specific
+  only to the process, but others&mdash;such as file offset&mdash;is specific
+  to the process and file descriptor. <em>Don't rush this design.</em> Think
+  carefully about the state you need to maintain, how to organize it, and when
+  and how it has to change.</p> <p>Note that there is a system call <kbd>__getcwd()</kbd> and then a
+  library routine <kbd>getcwd()</kbd>. Once you've written the system call,
+  the library routine should function correctly.</p> <h3>Process Support</h3> <p>Process support for ASST2 divides into the easy (<kbd>getpid()</kbd>)
+  and the not-so-easy: <kbd>fork()</kbd>, <kbd>execv()</kbd>,
+  <kbd>waitpid()</kbd> and <kbd>_exit()</kbd>).</p> <h4><kbd>getpid()</kbd></h4> <p>A pid, or process ID, is a unique number that identifies a process. The
+  implementation of <kbd>getpid()</kbd> is not terribly challenging, but
+  process ID allocation and reclamation are the important concepts that you
+  must implement. It is not OK for your system to crash because over the
+  lifetime of its execution you've used up all the pids. Design your pid
+  system, implement all the tasks associated with pid maintenance, and only
+  then implement <kbd>getpid()</kbd>.</p> <h4><kbd>fork()</kbd>, <kbd>execv()</kbd>, <kbd>waitpid()</kbd> and
+  <kbd>_exit()</kbd></h4> <p>These system calls are probably the most difficult part of the
+  assignment, but also the most rewarding. They enable multiprogramming and
+  make OS/161 a usable system.</p> <p><kbd>fork()</kbd> is the mechanism for creating new processes.  It
+  should make a copy of the invoking process and make sure that the parent
+  and child processes each observe the correct return value (that is, 0 for
+  the child and the newly created pid for the parent). You will want to
+  think carefully through the design of <kbd>fork()</kbd> and consider 
+  it together with <kbd>execv()</kbd> to make sure that each system call is
+  performing the correct functionality. <kbd>fork()</kbd> is also likely to
+  be a chance for you to use one of the syncronization primitives
+  introduced in ASST1.</p> <p><kbd>execv()</kbd>, although merely a system call, is really the heart
+  of this assignment. It is responsible for taking newly created processes
+  and make them execute something different than what the parent is
+  executing. It must replace the existing address space with a brand new
+  one for the new executable&mdash;created by 
+  calling <kbd>as_create</kbd> in the current <kbd>dumbvm</kbd>
+  system&mdash;and then run it. While this is similar to starting a process
+  straight out of the kernel, as <kbd>runprogram()</kbd> does, it's not
+  quite that simple. Remember that this call is coming out of userspace,
+  into the kernel, and then returning back to userspace. You must manage
+  the memory that travels across these boundaries <i>very</i> carefully.
+  Also, notice that <kbd>runprogram()</kbd> doesn't take an argument
+  vector, but this must of course be handled correctly by
+  <kbd>execv()</kbd>.</p> <p>Although it may seem simple at first, <kbd>waitpid()</kbd> requires a
+  fair bit of design. Read the specification carefully to understand the
+  semantics, and consider these semantics from the ground up in your
+  design. You may also wish to consult the UNIX man page, though keep in
+  mind that you are not required to implement all the things UNIX
+  <kbd>waitpid()</kbd> supports, nor is the UNIX parent/child model of
+  waiting the only valid or viable possibility.</p> <p>The implementation of <kbd>_exit()</kbd> is intimately connected to the
+  implementation of waitpid().  They are essentially two halves of the same
+  mechanism. Most of the time, the code for <kbd>_exit()</kbd> will be
+  simple and the code for <kbd>waitpid()</kbd> relatively complicated, but
+  it's perfectly viable to design it the other way around as well. If
+  you find both are becoming extremely complicated, it may be a sign that
+  you should rethink your design. <kbd>waitpid()/_exit()</kbd> is
+  <i>another</i> chance to use synchronization primitives you designed for
+  ASST1.</p> <h4><kbd>kill_curthread()</kbd></h4> <p>Feel free to write <tt>kill_curthread()</tt> in as simple a manner as
+  possible. Just keep in mind that essentially nothing about the current
+  thread's userspace state can be trusted if it has suffered a fatal
+  exception. It must be taken off the processor in as judicious a manner as
+  possible, but without returning execution to the user level.</p> <h3>Error Handling</h3> <p>The man pages in the OS/161 distribution contain a description of the
+  error return values that you must return. If there are conditions that
+  can happen that are not listed in the man page, return the most
+  appropriate error code from <kbd>kern/include/kern/errno.h</kbd>.  If
+  none seem particularly appropriate, consider adding a new one. If you're
+  adding an error code for a condition for which Unix has a standard error
+  code symbol, use the same symbol if possible. If not, feel free to make
+  up your own, but note that error codes should always begin with E, should
+  not be EOF, etc. Consult Unix man pages to learn about Unix error codes.
+  On Linux systems <kbd>man errno</kbd> will do the trick.</p> <p>Note that if you add an error code to
+  <kbd>kern/include/kern/errno.h</kbd>, you need to add a corresponding
+  error message to the file <kbd>kern/include/kern/errmsg.h</kbd>.</p> <h3>Scheduling</h3> <p>Right now, the OS/161 scheduler implements a simple round-robin queue.
+  You will see in <kbd>thread.c</kbd> that the <kbd>schedule()</kbd>
+  function is actually blank. The round-robin scheduling comes into effect
+  when <kbd>hardclock()</kbd> calls <kbd>thread_yield()</kbd> and a
+  subsequent call to <kbd>thread_switch()</kbd> pops the current
+  thread on the CPU's run-que and takes the next thread off the run-queue
+  achieving FIFO ordering. As we discussed in class, this is probably not
+  the best method for achieving optimal processor throughput.</p> <p>For this assignment, you should design and implement a scheduling
+  algorithm that gives priority to interactive threads, or those that
+  seem interactive by sleeping frequently. You are free to implement any of
+  the algorithms we have discussed in class or something different, and
+  potentially simpler, as long as it achieves the goal.</p> <p>We have tried to leverage the existing OS/161 configuration system to
+  make it easy for you to switch between the default round-robin scheduler
+  and your new implementation. To use the default scheduler:</p> <pre class="code">
+cse421@zion:~/src/kern/conf$ ./config ASST2</pre> <p>Continue by doing the usual thing. To use your new scheduler:</p> <pre class="code">
+cse421@zion:~/src/kern/conf$ ./config ASST2-OPT</pre> <p>Then do the usual thing in <kbd>compile/ASST-OPT</kbd>.</p> <h2>Testing</h2> <p>We plan to release more detailed information about testing eventually.
+  For now, this should give you an idea of how to get started.</p> <h3>System Calls</h3> <p>In <kbd>user/bin/sh</kbd> you will find a simple shell that will allow
+  you to test your new system call interfaces. When executed, the shell
+  prints a prompt, and allows you to type simple commands to run other
+  programs. Each command and its argument list (an array of character
+  pointers) is passed to the <kbd>execv()</kbd> system call, after calling
+  <kbd>fork()</kbd> to get a new thread for tis execution. The shell also
+  allows you to run a job in the background using <kbd>&amp;</kbd>. You can
+  exit the shell by typing <kbd>exit</kbd>.</p> <p> Under OS/161, once you have the system calls for this assignment, you
+  should be able to use the shell to execute the following user programs
+  from the <kbd>bin/</kbd> directory: <kbd>cat</kbd>, <kbd>cp</kbd>,
+  <kbd>false</kbd>, <kbd>pwd</kbd>, and <kbd>true</kbd>. You may also find
+  some of the programs in the testbin directory helpful.</p> <h3>Scheduling</h3> <p>We will test your scheduler by running a userspace test comparing the
+  scheduling of an faux-interactive process and a CPU hog. You can test
+  your scheduler by running several of the test programs from
+  <kbd>testbin</kbd>: <kbd>add.c</kbd>, <kbd>hog.c</kbd>,
+  <kbd>farm.c</kbd>, <kbd>sink.c</kbd>, <kbd>kitchen.c</kbd> and
+  <kbd>ps.c</kbd>. Compare against the default scheduling algorithm and
+  decide if what you observe makes sense.</p> <p>Note that we will only use a single CPU when testing your scheduling
+  algorithm, meaning that thread migration will not be an issue. If you are
+  curious, however, you may want to investigate thread migration on OS/161.
+  Start by looking at <kbd>thread_consider_migration()</kbd>.</p> <h2>Prepare and Upload</h2> <p>ASST2 has two parts to submit below: a 2-page design document executive
+summary, due by <strong class="duedate">23:59 EDT Wednesday 07 Mar
+2012</strong> and a patch containing your implementation, due by <strong
+class="duedate"></strong>.</p> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F2">log in</a>
+  so that you can submit your ASST2 files.
+  </p> </blockquote> <h3 class="handmein">Design Executive Summary</h3> <p>As a reminder, your executive summary should be:</p> <ul> <li>Two pages or fewer, but two pages is probably just about the
+    minumum.</li> <li>Written in a readable font with reasonable margins.</li> <li>Uploaded in PDF format.</li> </ul> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F2">log in</a> so that you can submit your answers.
+    </p> </blockquote> <div class="question design"><div class="name"> asst2 design </div><a class="anchor" name="Q14"><div class="text"></div></a></div> <h3 class="handmein">ASST2 Patch</h3> <p>Please prepare a patch in the same way that you did for ASST1. <em>Do
+  not forget to commit your changes!</em> Any problems creating a patch that
+  force you to resubmit will cost your group late days, so double-check that
+  your patch contains the changes you expect it to contain. Use <kbd>git
+  status</kbd> to ensure that your working directory is clean before you
+  create the patch.</p> <pre class="code">
+cse421@zion:~/src$ git diff 25466b88..HEAD &gt; ASST2.patch</pre> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F2">log in</a> so that you can submit your answers.
+    </p> </blockquote> <div class="question implementation"> </div> <h2>Manage Your SSH Keys</h2> <blockquote class="warning"> <p>Please <a href="../accounts/login?next=%252FASST%252F2">log in</a> so that you can manage your keys.
+    </p> </blockquote> </div> <script type="text/javascript" src="../js/jquery-1.7.1.js"></script> <div></div> </body> </html>
