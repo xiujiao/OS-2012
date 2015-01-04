@@ -1,0 +1,473 @@
+#include <process.h>
+
+//TODO right now I am setting process_id_count to 0 in thread_bootstrap();
+//TODO clean up process.h I might #include extra header files that I do not need
+//sys_fork() might be called since the result in tf->tf_v0 is the result from a previous syscall aka return 0; SYS_fork is 0;
+//look at array.c maybe we can use this type of array for our table? maybe we don't need to
+
+//call once during thread boot strap
+void process_init() {
+
+	//use PID_MIN from limits.h 
+	//process_id_count = PID_MIN;
+	process_id_count = PID_MIN;
+	process_id_lk = lock_create("process_id_array");
+	curthread->process->pid = 1;
+	//init LL
+	//
+}
+
+//uses a very similiar approach to get_file_handle
+int create_process_id() {
+
+	//use PID_MIN from limits.h
+	int itr = PID_MIN;
+	int return_id = 0;
+	bool used_old_id = false;
+
+	//iterate using process_id_count as a limit
+	//TODO we need to lock_acquire use this better. only surround necessary parts
+	lock_acquire(process_id_lk);	
+	while(itr < process_id_count) {
+		if(pid_in_use[itr] == false) {
+			return_id = itr;
+			
+			pid_in_use[itr] = true;
+			
+			used_old_id = true;
+			break;
+		}
+		itr++;
+	}
+	//if we have reached process_id_count in our loop we need to increase the process_id_counter
+	if(!used_old_id) {
+		pid_in_use[process_id_count] = true;
+		return_id = process_id_count;
+		process_id_count++;
+	}
+	//TODO we need to lock_release
+	lock_release(process_id_lk);
+	return return_id;
+}
+
+void childs_waiting_area(void *params, unsigned long num) {
+	(void) num;
+	struct new_p_data *par = (struct new_p_data *)params;
+	//enter_forked_process((struct trapframe *)params[0], (struct addrspace *)params[1], (int *)params[2]);
+	enter_forked_process(par->tf, par->addr);
+}
+//get file handle id's
+int get_file_handle(struct process *p) {
+
+	// 0,1,2 are used by standin/standout/err
+	int itr = 3;
+	int return_id = 0;
+	bool used_old_id = false;
+
+	//iterate using ft_counter
+	//TODO if we have multiple threads we need to lock_acquire
+	while(itr < p->ft_counter) {
+		if(p->file_table[itr] == NULL) {
+			return_id = itr;
+			used_old_id = true;
+			break;
+		}
+		itr++;
+	}
+	if(!used_old_id) {
+		return_id = p->ft_counter;
+		p->ft_counter++;
+	}
+	//TODO if we have multiple threads we need to lock_release
+	return return_id;
+}
+
+int sys_getpid(int32_t *retval) {
+	*retval = (int32_t)curthread->process->pid;
+	return 0;
+}
+
+// parent should keep a list of child process?
+// on fail be sure to free resouces (aka locks, any data on heap, open files, etc etc)
+// keep exit code from child process
+int sys_fork(struct trapframe *tf, int32_t *retval) {
+    
+	 /* 
+	 //pid creation test code
+	 int test_array[20];
+	 for(int i = 0; i < 20; i++) {
+		
+		test_array[i] = create_process_id();
+		
+		if(i == 4) {
+			pid_in_use[2] = false;
+		}
+		if(i == 11) {
+			pid_in_use[4] = false;
+		}
+		
+		kprintf("AsDF");
+	 }
+	 //*/
+	
+	 struct thread *newThread;
+	 struct trapframe *child_tf;
+	 struct addrspace *child_addr;
+	 struct new_p_data *child_param; 
+	 child_param = (struct new_p_data *)kmalloc(sizeof(struct new_p_data));
+
+	 //tf->tf_epc += 4;
+
+	 child_tf = (struct trapframe *) kmalloc(sizeof(struct trapframe));
+	 child_addr = (struct addrspace *) kmalloc(sizeof(struct addrspace));
+
+	 // set child v0 to 0
+	 // set parent v0 to child_pid
+
+	 // copy trapframe for child process use 
+	 // did some simple tests and memcpy is working great
+	memmove(child_tf, tf, sizeof(struct trapframe));
+	// child_tf->tf_v0 = 0;
+	// child_tf->tf_epc += 4;
+	// child_tf->tf_a3 = 0;
+	 
+	 // copy address space use as_copy
+	 as_copy(curthread->t_addrspace, &child_addr);
+	 
+	 child_param->tf = child_tf;
+	 child_param->addr = child_addr;
+	 int p_pid = curthread->process->pid;
+	 // maybe send all the info they need to copy to childs_waiting_area?
+	 thread_fork("childThread", childs_waiting_area, child_param, (unsigned long)p_pid, &newThread);
+
+	 //memcpy(newThread->t_stack, curthread->t_stack, STACK_SIZE);
+	 //newThread->process->tf = child_tf;
+	 
+	 // copy file table
+	 //memcpy(curthread->process->file_table, newThread->process->file_table, sizeof(*curthread->process->file_table)); 
+	 *retval = (int32_t)newThread->process->pid;
+
+	 //*/
+	 return 0;
+}
+
+// copy runprogram.c
+// kern/include/kern/limits.h __ARG_MAX (we may need to this to know maxium argument size)
+// we also need to copy args from users stack. these values will not be passed in through tf
+// be careful of word alignment when copy-ing from users stack a word is 32 bits (4 bytes)
+// on fail be sure to free resouces (aka locks, any data on heap, open files, etc etc)
+// TODO make sure you properly get rid of the old address space
+// TODO create some sort of limit as to the size of argv
+int sys_execv(const char * program, char* const *args) {
+	int itr = 0;
+	int argc = 0;
+	int modulo = 0;
+	int argument_size = 0;
+	int arg_item_size = 0;
+	int arg_stack_mem = 0;
+	int len_program = strlen(program);
+	int err;
+	
+	unsigned int arg_size = 0;
+	
+	char *c;
+
+	void *argument_stack;
+	void *argument_ptr;
+
+	char kprogram[len_program+1];
+
+	kprintf("exec - %s\n", program);
+
+	while(args[argc] != NULL) {
+		argc++;
+	}
+
+	char * copied_args[argc];
+	
+	//might need these to make the end of the argument list. if so make sure we add one more element to the array
+	//arguments[argc] = NULL;
+
+	//this loop is to get argument size
+	while(args[itr] != NULL) {
+		c = args[itr];
+		//plus 1 used for '\0\ char
+		arg_item_size = strlen(c) + 1;
+
+		modulo = arg_item_size % 4;
+		argument_size += arg_item_size + (4 - modulo);
+		if(modulo == 0) {
+			argument_size -= 4;
+		}
+		
+		//TODO remove eventually prob when done with exec
+		kprintf("args[%d] - %s size %d mod 4 = %d argsize %d\n", itr, c, arg_item_size, modulo, argument_size);
+		itr++;
+
+		arg_item_size = 0;
+	}
+
+	//(number of args) * 4 (size of pointer) = * 8
+	// + 4 is for null pointer between arg pointers and args
+	//This is our malloc size
+	arg_stack_mem = argument_size + (argc * 4) + 4;
+
+	//TODO free up this memory
+   argument_stack = kmalloc(arg_stack_mem);	
+
+	//TODO some sort of error return?
+	err = copyin((const_userptr_t)program, kprogram, sizeof(kprogram));
+
+	//reset itr
+	itr = 0;
+	
+	//reset things
+	arg_item_size = 0;
+	argument_size = 0;
+
+	//lets assign these variables
+	while(args[itr] != NULL) {
+
+		c = args[itr];
+		//plus 1 used for '\0\ char
+		arg_item_size = strlen(c) + 1;
+		
+		modulo = arg_item_size % 4;
+
+		//base line
+		argument_ptr = argument_stack;
+		
+		//get value
+		argument_ptr = argument_ptr + (argc * 4) + 4 + argument_size;
+
+		//strcpy	
+		copyin((const_userptr_t)args[itr], argument_ptr, strlen(args[itr]));
+		copied_args[itr] = (char *)argument_ptr;
+
+		//reset values per loop
+		argument_size += arg_item_size + (4 - modulo);
+		if(modulo == 0) {
+			argument_size -= 4;
+		}
+		itr++;
+		arg_item_size = 0;
+	}
+
+	/////////////////////////////////////////////////////
+	//***************************************************
+	/////////////////////////////////////////////////////
+	struct vnode *v;
+	vaddr_t entrypoint, stackptr;
+	int result;
+
+	/* Open the file. */
+	result = vfs_open(kprogram, O_RDONLY, 0, &v);
+	if (result) {
+		return result;
+	}
+
+	//prob don't need this
+	/* We should be a new thread. */
+	//KASSERT(curthread->t_addrspace == NULL);
+
+	/* Create a new address space. */
+	curthread->t_addrspace = as_create();
+	if (curthread->t_addrspace==NULL) {
+		vfs_close(v);
+		return ENOMEM;
+	}
+
+	/* Activate it. */
+	as_activate(curthread->t_addrspace);
+
+	/* Load the executable. */
+	result = load_elf(v, &entrypoint);
+	if (result) {
+		/* thread_exit destroys curthread->t_addrspace */
+		vfs_close(v);
+		return result;
+	}
+
+	/* Done with the file now. */
+	vfs_close(v);
+
+	/* Define the user stack in the address space */
+	result = as_define_stack(curthread->t_addrspace, &stackptr);
+	if (result) {
+		/* thread_exit destroys curthread->t_addrspace */
+		return result;
+	}
+	
+	//reset things
+	arg_item_size = 0;
+	argument_size = 0;
+
+	//lets assign these variables
+	for(int j = argc-1; j >= 0; j--) {
+
+		vaddr_t tempAddress = 2147483648;
+
+		c = copied_args[j];
+		//plus 1 used for '\0\ char
+		arg_item_size = strlen(c) + 1;
+		
+		modulo = arg_item_size % 4;
+
+		//reset values per loop
+		arg_size += arg_item_size + (4 - modulo);
+		if(modulo == 0) {
+			arg_size -= 4;
+		}
+		
+		//base line
+		argument_ptr = argument_stack;
+		argument_ptr = argument_ptr + (j * 4);
+
+		tempAddress -= arg_size;	
+
+		memmove(argument_ptr, &tempAddress, 4);
+		
+		arg_item_size = 0;
+	}
+
+	//assign NULL
+	char *null_ptr;
+	
+	argument_ptr = argument_stack + (argc * 4);
+	null_ptr = (char *)argument_ptr;
+	null_ptr = NULL;
+
+	/* Open StandIn/Out/Err*/
+	char console[5];
+	struct vnode * vnode0;
+	struct vnode * vnode1;
+	struct vnode * vnode2;
+
+	strcpy(console,"con:");
+	// open Standin
+   result = vfs_open(console, O_RDONLY, 0664, &vnode0);
+	if(result){
+		return result;
+	}
+
+	file_desc * open_file_desc0 =(file_desc*) kmalloc(sizeof(file_desc));
+	bzero(open_file_desc0,sizeof(file_desc));
+
+	open_file_desc0->fldesc_lk = lock_create("filedesc_lk");
+	lock_acquire(open_file_desc0->fldesc_lk);
+		open_file_desc0->offset = 0;
+		open_file_desc0->ref_count = 1;
+		open_file_desc0->file_object = vnode0;
+   lock_release(open_file_desc0->fldesc_lk);
+	//update file table
+	curthread->process->file_table[0] = open_file_desc0;
+
+   //open standout
+	strcpy(console,"con:");
+   result = vfs_open(console, O_WRONLY, 0664, &vnode1);
+	if(result){
+		return result;
+	}
+	file_desc * open_file_desc1 =(file_desc*) kmalloc(sizeof(file_desc));
+	bzero(open_file_desc1,sizeof(file_desc));
+
+	open_file_desc1->fldesc_lk = lock_create("filedesc_lk");
+	lock_acquire(open_file_desc1->fldesc_lk);
+		open_file_desc1->offset = 0;
+		open_file_desc1->ref_count = 1;
+		open_file_desc1->file_object = vnode1;
+   lock_release(open_file_desc1->fldesc_lk);
+	//update file table
+	curthread->process->file_table[1] = open_file_desc1;
+   
+	// open standerr
+	strcpy(console,"con:");
+   result = vfs_open(console, O_WRONLY, 0664, &vnode2);
+	if(result){
+		return result;
+	}
+	file_desc * open_file_desc2 =(file_desc*) kmalloc(sizeof(file_desc));
+	bzero(open_file_desc2,sizeof(file_desc));
+
+	open_file_desc2->fldesc_lk = lock_create("filedesc_lk");
+	lock_acquire(open_file_desc2->fldesc_lk);
+		open_file_desc2->offset = 0;
+		open_file_desc2->ref_count = 1;
+		open_file_desc2->file_object = vnode2;
+   lock_release(open_file_desc2->fldesc_lk);
+	//update file table
+	curthread->process->file_table[2] = open_file_desc2;
+
+	stackptr -= arg_stack_mem;
+	copyout(argument_stack, (userptr_t)stackptr, arg_stack_mem);
+
+	//TODO clean up mallocs
+
+	/* Warp to user mode. */
+	enter_new_process(itr, (userptr_t)stackptr /*userspace addr of argv*/,
+			  stackptr, entrypoint);
+	
+	/* enter_new_process does not return. */ 
+	panic("enter_new_process returned\n");
+	return EINVAL;
+	
+}
+
+//keep exit code from child process
+int sys_waitpid(int pid, int * status, int options, int32_t * retval) {
+ 
+	int cur_pid = curthread->process->pid;
+	// pid err checking
+	if(pid <= 1 || pid > PID_MAX -1 )
+	{
+		return ESRCH;
+	}
+   if(all_process_meta[pid].p_pid != cur_pid)
+	{
+      return ECHILD;
+	}
+   // status err checkin
+   if (status == NULL ||(vaddr_t)status < 0x400000 
+			||(((vaddr_t)status > 0x466000) && ((vaddr_t)status <= 0x40000000)) 
+			||(vaddr_t) status >= 0x80000000 || ((unsigned int)status % 4)!= 0){
+		return EFAULT;
+	}
+	// options err checking
+	if(options != 0)
+	{
+		return EINVAL;
+	}
+	lock_acquire(all_process_meta[pid].exit_lk);
+	while(1){
+		if(all_process_meta[pid].exited == 1){
+			// get exited code and release pid and process meta 
+			*status = all_process_meta[pid].exitcode;
+			all_process_meta[pid].p_pid = PID_MAX+1;
+
+			lock_acquire(process_id_lk);
+			pid_in_use[pid] = false;
+			lock_release(process_id_lk);
+
+         lock_release(all_process_meta[pid].exit_lk);
+			break;
+		}else{
+			cv_wait(all_process_meta[pid].exit_cv,all_process_meta[pid].exit_lk);
+		}
+	}
+   *retval = (int32_t)pid;
+	return 0;
+}
+
+//keep exit code from child process
+int sys_exit(int exitcode) {
+
+	int pid = curthread->process->pid;
+	lock_acquire(all_process_meta[pid].exit_lk);
+	all_process_meta[pid].exited = 1;
+	all_process_meta[pid].exitcode =(_MKWVAL(exitcode)|__WEXITED);
+	cv_broadcast(all_process_meta[pid].exit_cv,all_process_meta[pid].exit_lk);
+	lock_release(all_process_meta[pid].exit_lk);
+	thread_exit();
+
+	return 0;
+}

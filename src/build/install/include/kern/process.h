@@ -1,0 +1,76 @@
+#ifndef _PROCESS_H_
+#define _PROCESS_H_
+
+#include <types.h>
+#include <kern/errno.h>
+#include <kern/fcntl.h>
+#include <lib.h>
+#include <thread.h>
+#include <current.h>
+#include <addrspace.h>
+#include <vm.h>
+#include <vfs.h>
+#include <syscall.h>
+#include <test.h>
+#include <kern/wait.h>
+
+//max file table entries
+#define MAX_FT_ENTRIES 64
+//max process id entries
+#define MAX_PID_ENTRIES 128
+
+//global process ids counter
+volatile int process_id_count;
+
+struct p_id_ll *p_id_list;
+
+struct p_id_ll_node {
+	struct p_id_ll_node *next;
+	int pid;
+};
+
+struct p_id_ll {
+	struct p_id_ll_node head;
+	unsigned p_count;
+};
+
+typedef struct {
+	int file_access;
+	off_t offset;
+	int ref_count;
+	struct vnode *file_object;
+}file_desc;
+
+struct process {
+	//process id. just a typedef-ed int
+	//pid_t pid;
+	pid_t pid;
+
+	//file table - implemented as an array with a counter
+	file_desc *file_table[MAX_FT_ENTRIES];
+	//file table counter
+	int ft_counter;
+	
+	//we need some sort of locks?
+	//if we get to the scheduler
+	//priority
+};
+
+//returns a process id that is not currently used
+//works off our global process variables
+int create_process_id(void);
+void process_init(void);
+int get_file_handle(struct process *p);
+
+void p_id_ll_node_init(struct p_id_ll_node *p, int local_pid);
+void p_id_ll_init(struct p_id_ll *p);
+bool p_id_ll_isempty(struct p_id_ll *p);
+
+int sys_getpid(void);
+int sys_fork(void);
+int sys_execv(void);
+int sys_waitpid(void);
+int sys_exit(void);
+
+
+#endif

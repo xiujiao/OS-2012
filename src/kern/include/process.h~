@@ -1,0 +1,85 @@
+#ifndef _PROCESS_H_
+#define _PROCESS_H_
+
+#include <types.h>
+#include <limits.h>
+#include <kern/errno.h>
+#include <kern/fcntl.h>
+#include <lib.h>
+#include <thread.h>
+#include <current.h>
+#include <addrspace.h>
+#include <vm.h>
+#include <vfs.h>
+#include <syscall.h>
+#include <test.h>
+#include <synch.h>
+#include <mips/trapframe.h>
+#include <copyinout.h>
+#include <kern/wait.h>
+
+//max process id entries look at kern/include/kern/limits.h - PID_MAX
+
+//global process ids counter
+volatile int process_id_count;
+
+//PID_MAX is from kern/include/limits.h
+volatile bool pid_in_use[PID_MAX];
+
+//struct for keeping process meta data
+struct meta_process{
+	int p_pid;
+	struct cv* exit_cv;
+	struct lock* exit_lk;
+	bool exited;
+	int exitcode;
+};
+// global information for all the process
+struct meta_process all_process_meta[PID_MAX];
+
+//lock needed for create_process_id();
+struct lock *process_id_lk;
+
+//TODO syncro
+typedef struct {
+	struct lock *fldesc_lk;
+	int file_access;
+	volatile off_t offset;
+	volatile	int ref_count;
+	struct vnode *file_object;
+} file_desc;
+
+struct process {
+	//process id. just a typedef-ed int
+	//pid_t pid;
+	int pid;
+
+	//file table - implemented as an array with a counter
+   file_desc *file_table[OPEN_MAX];
+	//file table counter
+	int ft_counter;
+	
+	//we need some sort of locks?
+	//if we get to the scheduler
+	//priority
+};
+
+struct new_p_data {
+	struct trapframe *tf;
+	struct addrspace *addr;
+};
+
+//returns a process id that is not currently used
+//works off our global process variables
+int create_process_id(void);
+void process_init(void);
+int get_file_handle(struct process *p);
+void childs_waiting_area(void *params, unsigned long num);
+
+int sys_getpid(int32_t *retval);
+int sys_fork(struct trapframe *tf, int32_t *retval);
+int sys_execv(const char * program, char *const *args);
+int sys_waitpid(int pid, int * status, int options, int32_t *retval);
+int sys_exit(int exitcode);
+
+#endif

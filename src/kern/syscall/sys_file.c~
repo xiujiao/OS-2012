@@ -1,0 +1,333 @@
+#include <types.h>
+#include <copyinout.h>
+#include <syscall.h>
+#include <process.h>
+#include <limits.h>
+#include <uio.h>
+#include <kern/seek.h>
+#include <vnode.h>
+#include <kern/stat.h>
+
+struct vnode;
+struct file_desc;
+struct uio;
+struct iovec;
+struct stat;
+
+int sys_open(const char *filename, int flags, size_t mode, int32_t *retval)
+{
+	 
+	//Erro Detection 
+   if (filename == NULL || filename == "" ||(vaddr_t)filename < 0x400000 
+			||(((vaddr_t)filename > 0x466000) && ((vaddr_t)filename <= 0x40000000)) 
+			||(vaddr_t) filename >= 0x80000000){
+		return EINVAL;
+	}
+	if(curthread->process->ft_counter==OPEN_MAX-1){ 	
+		return EMFILE;
+	}
+	int err;
+	int filehandle=get_file_handle(curthread->process);
+	if (filehandle > OPEN_MAX-1){
+      return EBADF;
+	}
+
+   const char * lk_name="fldesc_lk";
+   struct vnode *vnode;
+	char kfilename[PATH_MAX];
+	size_t gotlen=0;
+
+	// kmalloc space for filedesc
+	file_desc * open_file_desc =(file_desc*) kmalloc(sizeof(file_desc));
+	bzero(open_file_desc,sizeof(file_desc));
+
+	//copy user space to kernel space
+	err = copyinstr((const_userptr_t)filename,kfilename,PATH_MAX,&gotlen);
+	if(err)
+	{
+		return err;
+	}
+   err = vfs_open(kfilename,flags,mode,&vnode);
+	if(err)
+	{
+		return err;
+	}
+	//modify shared data: offset and ref-count
+	open_file_desc->fldesc_lk = lock_create(lk_name);
+	
+	lock_acquire(open_file_desc->fldesc_lk);
+		open_file_desc->offset = 0;
+		open_file_desc->file_object = vnode;
+		if(flags & O_APPEND)
+		{
+			struct stat vnstat;
+			err = VOP_STAT(curthread->process->file_table[filehandle]->file_object, &vnstat);
+			if(err){
+				return err;
+			}
+		   open_file_desc->offset = vnstat.st_size-1;
+		}
+		open_file_desc->ref_count = 1;
+		open_file_desc->file_access = flags;
+   lock_release(open_file_desc->fldesc_lk);
+
+	//update file table
+	curthread->process->file_table[filehandle] = open_file_desc;
+	*retval=(int32_t)filehandle;
+	
+	return 0;
+}
+
+int  sys_read(int filehandle, void *buf, size_t size, int32_t* retval)
+{
+	// File must be open before reading
+	if(filehandle < 0 || filehandle > OPEN_MAX-1
+			|| curthread->process->file_table[filehandle] == NULL){
+ 		return EBADF;
+	}
+   // Buf should be valid
+   if (buf == NULL ||(vaddr_t)buf < 0x400000 
+			||(((vaddr_t)buf > 0x466000) && ((vaddr_t)buf <= 0x40000000)) 
+			||(vaddr_t) buf >= 0x80000000){
+		return EFAULT;
+	}
+	if(curthread->process->ft_counter==OPEN_MAX-1){ 	
+		return EMFILE;
+	}
+   if(curthread->process->file_table[filehandle]->file_access == O_WRONLY){
+		return EBADF;
+	}
+	/*if((filehandle == 0) && (curthread->process->file_table[0]->file_access == O_RDWR)){
+		return EBADF;
+	}*/
+   int result;
+	struct uio ruio;
+   struct iovec riovec;
+	void *rbuf[size];
+   bzero(rbuf,sizeof(rbuf));
+
+	 off_t pos = curthread->process->file_table[filehandle]->offset;
+	 uio_kinit(&riovec, &ruio, rbuf, size, pos, UIO_READ);
+    // read should be atomic
+	 lock_acquire(curthread->process->file_table[filehandle]->fldesc_lk);
+	 VOP_READ(curthread->process->file_table[filehandle]->file_object, &ruio);
+	 int bytesread = size -ruio.uio_resid;
+	 if(bytesread < 0){
+		return EFAULT;
+	 }
+	 curthread->process->file_table[filehandle]->offset += (off_t)bytesread;
+	 lock_release(curthread->process->file_table[filehandle]->fldesc_lk);
+
+	 result = copyout(rbuf,(userptr_t)buf,size);
+	 if(result){
+		 return result;
+	 }
+	*retval = bytesread;
+	return 0;
+}
+
+int sys_write(int filehandle, const void *buf, size_t size, int32_t* retval)
+{
+   void * wbuf[size];
+	bzero(wbuf,sizeof(wbuf));
+
+	int result;
+   result =	copyin((const_userptr_t)buf, wbuf, size);
+   if(result){
+		return result;
+	}
+	if(filehandle < 0 || filehandle > OPEN_MAX-1
+			|| curthread->process->file_table[filehandle] == NULL){
+ 		return EBADF;
+	}
+   // Buf should ne valid
+   if (buf == NULL ||(vaddr_t)buf < 0x400000 
+			||(((vaddr_t)buf > 0x466000) && ((vaddr_t)buf <= 0x40000000)) 
+			||(vaddr_t) buf >= 0x80000000){
+		return EFAULT;
+	}
+	if(curthread->process->file_table[filehandle]->file_access == O_RDONLY){
+     return EBADF;
+	}
+	/*if(((filehandle == 1) || (filehandle == 2)) && (curthread->process->file_table[filehandle]->file_access == O_RDWR )){
+     return EBADF;
+	}*/
+	 struct uio wuio;
+	 struct iovec wiovec;
+    off_t pos = curthread->process->file_table[filehandle]->offset;
+
+	 uio_kinit(&wiovec, &wuio, wbuf, size, pos, UIO_WRITE);
+    // read should be atomic
+	 lock_acquire(curthread->process->file_table[filehandle]->fldesc_lk);
+	 VOP_WRITE(curthread->process->file_table[filehandle]->file_object, &wuio);
+	 int byteswrite = size -wuio.uio_resid;
+	 if(byteswrite < 0){
+		return EFAULT;
+	 }
+	 curthread->process->file_table[filehandle]->offset += (off_t)byteswrite;
+	 lock_release(curthread->process->file_table[filehandle]->fldesc_lk);
+	
+	 *retval=byteswrite;
+	 return 0;
+}
+
+int sys_close(int filehandle)
+{
+   if(filehandle < 0 || filehandle > OPEN_MAX-1 ||
+		  	curthread->process->file_table[filehandle] == NULL){
+      return EBADF;
+	}
+
+   if(curthread->process->file_table[filehandle]->ref_count < 1){
+		return EBADF;
+	}
+ /*  if(filehandle == 0 || filehandle == 1 || filehandle == 2){
+		
+		vfs_close(curthread->process->file_table[filehandle]->file_object);
+		kfree(curthread->process->file_table[filehandle]);
+      curthread->process->file_table[filehandle] = NULL;
+		return 0;
+	}*/
+   if(curthread->process->file_table[filehandle]->ref_count > 1){
+		lock_acquire(curthread->process->file_table[filehandle]->fldesc_lk);
+		curthread->process->file_table[filehandle]->ref_count--;
+		lock_release(curthread->process->file_table[filehandle]->fldesc_lk);
+		curthread->process->file_table[filehandle] = NULL;
+		return 0;
+	}
+
+	if(curthread->process->file_table[filehandle]->ref_count == 1){
+		vfs_close(curthread->process->file_table[filehandle]->file_object);
+		kfree(curthread->process->file_table[filehandle]);
+      curthread->process->file_table[filehandle] = NULL;
+	}
+	return 0;
+}
+
+int sys_dup2(int oldhandle, int newhandle, int32_t* retval)
+{
+	// oldhandle and newhandle should be in the bound, and old handle should be open
+	if(oldhandle < 0 || newhandle < 0 || oldhandle > OPEN_MAX-1 || newhandle > OPEN_MAX-1
+    	|| curthread->process->file_table[oldhandle] == NULL){
+		return EBADF;
+	}
+	if(curthread->process->ft_counter >= OPEN_MAX-1){ 	
+		return EMFILE;
+	}
+	// if oldhandle = newhandle,just return newhanlde
+	if(oldhandle == newhandle){
+		*retval = newhandle;
+		return 0;
+	}
+	// if newhandle is open ,close it before dup2
+	if(curthread->process->file_table[newhandle] != NULL){
+		sys_close(newhandle);
+	} 
+   
+	lock_acquire(curthread->process->file_table[oldhandle]->fldesc_lk);
+	curthread->process->file_table[oldhandle]-> ref_count++;
+   lock_release(curthread->process->file_table[oldhandle]->fldesc_lk);
+	curthread->process->file_table[newhandle] = curthread->process->file_table[oldhandle];
+
+	*retval=newhandle;
+	return 0;
+}
+
+int sys_chdir(char *path)
+{
+   if (path == NULL || path == "" ||(vaddr_t)path < 0x400000 
+			||(((vaddr_t)path > 0x466000) && ((vaddr_t)path <= 0x40000000)) 
+			||(vaddr_t) path >= 0x80000000){
+		return EFAULT;
+	}
+
+	int result;
+	char kpath[PATH_MAX];
+	result = copyin((const_userptr_t)path, kpath, PATH_MAX);
+   if(result){
+		return result;
+	}
+	result=vfs_chdir(kpath);
+	if(result){
+		return result;
+	}
+	return 0;
+}
+
+off_t sys_lseek(int filehandle, off_t pos, int code, int32_t* retval, uint32_t * tfv1)
+{
+   if(filehandle < 0 || filehandle > OPEN_MAX-1 || curthread->process->file_table[filehandle] == NULL){
+		return EBADF;
+	}
+	/*if(filehandle == 0 ||filehandle == 1 || filehandle ==2 ){
+		return EBADF;
+	}*/
+
+	off_t retv;
+	struct stat vnstat;
+   int result = 0;
+
+	switch(code){
+		case SEEK_SET:
+			retv = pos;
+			break;
+		case SEEK_CUR:
+			retv =  curthread->process->file_table[filehandle]->offset + pos;
+			break;
+		case SEEK_END:
+			result = VOP_STAT(curthread->process->file_table[filehandle]->file_object, &vnstat);
+			if(result){
+				return result;
+			}
+			retv = vnstat.st_size + pos;
+			break;
+		default:
+			return EINVAL;
+	}
+	if(retv < 0){
+		return EINVAL;
+	}
+	// TRYSEEK
+	result = VOP_TRYSEEK(curthread->process->file_table[filehandle]->file_object, retv);
+	if(result){
+		return result;
+	}
+   lock_acquire(curthread->process->file_table[filehandle]->fldesc_lk);
+	curthread->process->file_table[filehandle]->offset = retv;
+	lock_release(curthread->process->file_table[filehandle]->fldesc_lk);
+
+	*retval =(int32_t)(retv >> 32);
+	*tfv1 = (uint32_t)retv;
+	
+	return 0;
+}
+
+int sys_getcwd(char *buf, size_t buflen, int32_t *retval)
+{
+   struct uio cwduio;
+	struct iovec  cwdiovec;
+	int result;
+   char kbuf[buflen+1];
+	bzero(kbuf, sizeof(kbuf));
+
+   if (buf == NULL ||(vaddr_t)buf < 0x400000 
+			||(((vaddr_t)buf > 0x466000) && ((vaddr_t)buf <= 0x40000000)) 
+			||(vaddr_t) buf >= 0x80000000){
+		return EFAULT;
+	}
+	uio_kinit(&cwdiovec, &cwduio, kbuf, buflen, 0, UIO_READ);
+	result = vfs_getcwd(&cwduio);
+	if(result){
+			return result;	
+	}
+
+	result = copyout(kbuf,(userptr_t)buf, sizeof(kbuf));
+	if(result){
+		return result;
+	}
+
+   *retval = (int32_t)(buflen-cwduio.uio_resid);
+	return 0;
+}
+
+ 
