@@ -1,6 +1,6 @@
 OS-Projects 2012
 =======
-This course was offered by Geoffrey Challen from UB.
+This course was offered by Geoffrey Challen from UB. [John Longanecker](https://github.com/johnlonganecker) was my team member. 
 
 It has three projects .
 
